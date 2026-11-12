@@ -3,7 +3,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
 const paga = require('./paga'); const circle = require('./circle');
 const PORT = process.env.PORT || 3000;
 
-const send = (res, code, body, type = 'application/json') => { res.writeHead(code, { 'Content-Type': type }); res.end(type === 'application/json' ? JSON.stringify(body) : body); };
+const send = (res, code, body, type = 'application/json') => { res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-cache' }); res.end(type === 'application/json' ? JSON.stringify(body) : body); };
 const readBody = req => new Promise(r => { let b = ''; req.on('data', d => (b += d)); req.on('end', () => r(b)); });
 
 http.createServer(async (req, res) => {
