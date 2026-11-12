@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How AjoLabs works</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--tx:#f0f4f2;--mut:#96a09e;--dim:#606a68;--mint:#a8e8c5;--green:#64dea0;--line:rgba(255,255,255,.1);--card:rgba(255,255,255,.04);--red:#ec705c}
+*{box-sizing:border-box;margin:0}
+body{background:linear-gradient(180deg,#0e1316,#0a0e0d);color:var(--tx);font-family:Poppins,system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+.glow{position:fixed;inset:0;pointer-events:none;background:radial-gradient(520px 520px at 85% 0%,rgba(20,70,45,.55),transparent 70%),radial-gradient(420px 420px at 0% 100%,rgba(14,22,46,.6),transparent 70%)}
+header{position:relative;display:flex;align-items:center;justify-content:space-between;padding:20px 24px;max-width:860px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:10px;font-weight:500;font-size:20px;color:var(--tx);text-decoration:none}
+.nav{color:var(--mint);text-decoration:none;font-size:14px;border:1px solid rgba(100,222,160,.4);padding:7px 14px;border-radius:99px}
+main{position:relative;max-width:860px;margin:0 auto;padding:8px 24px 90px}
+.eyebrow{font-size:12px;letter-spacing:.14em;color:var(--mut);text-transform:uppercase;margin-bottom:12px}
+h1{font-weight:300;font-size:clamp(34px,6vw,54px);line-height:1.12}h1 em{font-style:normal;color:var(--mint)}
+.lead{color:var(--mut);margin-top:14px;font-size:16px;line-height:1.65;max-width:620px}
+section{margin-top:46px}
+h2{font-weight:500;font-size:24px;margin-bottom:10px}
+p{color:#c9d1cf;line-height:1.7;font-size:15.5px;margin-top:10px;max-width:660px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;margin-top:16px}
+.steps{list-style:none;padding:0;margin-top:14px;counter-reset:s}
+.steps li{counter-increment:s;position:relative;padding:12px 0 12px 44px;border-top:1px solid var(--line);color:#c9d1cf;line-height:1.6;font-size:15.5px}
+.steps li:first-child{border-top:0}
+.steps li:before{content:counter(s);position:absolute;left:0;top:12px;width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--mut);margin-top:1px}
+table{width:100%;border-collapse:collapse;margin-top:6px}
+td,th{padding:9px 0;font-size:15px;text-align:left;border-top:1px solid var(--line);color:#c9d1cf}
+tr:first-child td,tr:first-child th{border-top:0}th{color:var(--mut);font-weight:400;font-size:13px}
+td:last-child,th:last-child{text-align:right}td b{font-weight:500;color:var(--tx)}
+.mint{color:var(--mint)}.note{font-size:13px;color:var(--dim);margin-top:12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:640px){.two{grid-template-columns:1fr}}
+.btn{display:inline-block;margin-top:30px;border-radius:99px;padding:14px 26px;font-weight:500;font-size:16px;color:#0b1a12;background:linear-gradient(135deg,#b9f7d6,#3fd68b);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<header>
+  <a class="brand" href="/">
+    <svg width="30" height="30" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B9F7D6"/><stop offset="1" stop-color="#3FD68B"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="url(#g)"/><circle cx="32" cy="32" r="17" fill="none" stroke="#0B0F0D" stroke-opacity=".35" stroke-width="1.5"/><circle cx="32" cy="15" r="6" fill="#0B0F0D"/><circle cx="46.7" cy="23.5" r="4.2" fill="#0B0F0D"/><circle cx="46.7" cy="40.5" r="4.2" fill="#0B0F0D"/><circle cx="32" cy="49" r="4.2" fill="#0B0F0D"/><circle cx="17.3" cy="40.5" r="4.2" fill="#0B0F0D"/><circle cx="17.3" cy="23.5" r="4.2" fill="#0B0F0D"/></svg>
+    AjoLabs
+  </a>
+  <a class="nav" href="/">Open the app</a>
+</header>
+<main>
+  <div class="eyebrow">How it works</div>
+  <h1>Save together.<br><em>Everyone stays protected.</em></h1>
+  <p class="lead">AjoLabs is a private savings circle, the way Ajo and Esusu have always worked. Everyone pays in, one person receives the pot each round, and the rules below keep it fair when life gets in the way. Paga moves the money. AjoLabs keeps the rules and the record.</p>
+
+  <section>
+    <h2>One round, start to finish</h2>
+    <ol class="steps">
+      <li>Someone creates a circle and sets the amount, the number of members (3 to 10) and how often: weekly, every 2 weeks or monthly.</li>
+      <li>They share the private invite link. Only people with the link can join.</li>
+      <li>When every seat is taken, each member pays a deposit equal to one payment.</li>
+      <li>Round 1 opens. Everyone has 24 hours to pay. Members pay through Paga.</li>
+      <li>As soon as everyone has paid, the pot goes to that round's member, straight to their bank account.</li>
+      <li>A fresh countdown starts (7, 14 or 30 days) and the next round begins. This repeats until everyone has been paid once.</li>
+    </ol>
+    <p class="note">Payout order is the order people joined, so the person who creates the circle receives first.</p>
+  </section>
+
+  <section>
+    <h2>Deposit</h2>
+    <p>Before round 1, every member pays one extra contribution as a deposit. It sits in the circle for the whole cycle and is <span class="mint">returned in full at the end</span> if you never missed a payment. If you do miss one, the deposit helps cover it.</p>
+  </section>
+
+  <section>
+    <h2>Holdback and trust tiers</h2>
+    <p>When it is your turn to receive, a small share of what you still owe the circle is held back from your payout. It is released to you in equal parts, one each round, as the circle continues. The more circles you finish, the less is held back.</p>
+    <div class="card">
+      <table>
+        <tr><th>Your history</th><th>Held back from your payout</th></tr>
+        <tr><td>New member</td><td><b>10%</b></td></tr>
+        <tr><td>1 to 2 circles finished</td><td><b>5%</b></td></tr>
+        <tr><td>3 or more circles finished</td><td><b>2%</b></td></tr>
+      </table>
+      <p class="note">The percentage applies to what you still owe, not to the whole pot. A default mark adds 5 points to your holdback in future circles, up to a cap of 25%.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Countdown and grace</h2>
+    <p>Each round has a countdown. It starts fresh after every payout, so a late round never shortens the next one. Round 1 has a 24 hour funding window. After that, each round has the full countdown plus <span class="mint">24 hours of grace</span>.</p>
+    <p>Once the deadline and grace have passed, anyone in the circle can run settlement.</p>
+  </section>
+
+  <section>
+    <h2>If someone does not pay</h2>
+    <p>Settlement covers each missed payment from these sources, in this order:</p>
+    <ol class="steps">
+      <li>The member's own <b>holdback</b>, if they have already received a payout.</li>
+      <li>The member's own <b>deposit</b>.</li>
+      <li>The circle's <b>default pool</b>, which is topped up from a share of the service fees.</li>
+      <li>If there is still a gap, the person receiving that round gets a slightly <b>reduced payout</b>.</li>
+    </ol>
+    <p>The member who missed a payment gets a <span class="mint">default mark</span>. It raises their holdback in future circles. They still owe the remaining rounds.</p>
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:6px">Example</div>
+      <p style="margin-top:0">A circle of 5 members, ₦5,000 each. Tunde does not pay in round 1.</p>
+      <table>
+        <tr><td>Pot for the round</td><td>₦25,000</td></tr>
+        <tr><td>Tunde's ₦5,000 is covered from his deposit</td><td><b>Covered</b></td></tr>
+        <tr><td>Service fee (1%)</td><td>−₦250</td></tr>
+        <tr><td>Holdback for a new receiver (10% of ₦20,000)</td><td>−₦2,000</td></tr>
+        <tr><td><b>The receiver gets</b></td><td class="mint"><b>₦22,750</b></td></tr>
+      </table>
+      <p class="note">Tunde now has no deposit left and carries a default mark.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Fees</h2>
+    <p>The service fee is 1% of the pot, taken at each payout. A quarter of every fee goes into the circle's default pool. These numbers are placeholders for the demo and can change.</p>
+  </section>
+
+  <section>
+    <h2>Where Paga fits in</h2>
+    <div class="two">
+      <div class="card" style="margin-top:0"><div class="eyebrow">Paga</div><p style="margin-top:0">Collects every payment, confirms it with a webhook, and sends payouts to bank accounts.</p></div>
+      <div class="card" style="margin-top:0"><div class="eyebrow">AjoLabs</div><p style="margin-top:0">Keeps the circle rules, the countdown, the trust tiers and the full activity record.</p></div>
+    </div>
+    <p class="note">This version is a prototype running in Paga test mode. No real money moves.</p>
+  </section>
+
+  <a class="btn" href="/">Start a circle</a>
+</main>
+</body>
+</html>

@@ -13,6 +13,8 @@ body{background:linear-gradient(180deg,#0e1316,#0a0e0d);color:var(--tx);font-fam
 .glow{position:fixed;inset:0;pointer-events:none;background:radial-gradient(520px 520px at 85% 0%,rgba(20,70,45,.55),transparent 70%),radial-gradient(420px 420px at 0% 100%,rgba(14,22,46,.6),transparent 70%)}
 header{position:relative;display:flex;align-items:center;justify-content:space-between;padding:20px 24px;max-width:1100px;margin:0 auto}
 .brand{display:flex;align-items:center;gap:10px;font-weight:500;font-size:20px}
+.nav{color:var(--mut);text-decoration:none;font-size:14px}.nav:hover{color:var(--tx)}
+.warn{border-color:rgba(236,112,92,.5);background:rgba(236,112,92,.07);margin-top:16px;font-size:14px;line-height:1.55}.warn b{font-weight:500}
 .pill{font-size:12px;color:var(--mint);border:1px solid rgba(100,222,160,.4);background:rgba(100,222,160,.1);padding:5px 12px;border-radius:99px}
 main{position:relative;max-width:1100px;margin:0 auto;padding:8px 24px 80px}
 .eyebrow{font-size:12px;letter-spacing:.14em;color:var(--mut);text-transform:uppercase;margin-bottom:12px}
@@ -65,7 +67,7 @@ table{width:100%;border-collapse:collapse}td{padding:7px 0;font-size:15px;color:
     <svg width="30" height="30" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B9F7D6"/><stop offset="1" stop-color="#3FD68B"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="url(#g)"/><circle cx="32" cy="32" r="17" fill="none" stroke="#0B0F0D" stroke-opacity=".35" stroke-width="1.5"/><circle cx="32" cy="15" r="6" fill="#0B0F0D"/><circle cx="46.7" cy="23.5" r="4.2" fill="#0B0F0D"/><circle cx="46.7" cy="40.5" r="4.2" fill="#0B0F0D"/><circle cx="32" cy="49" r="4.2" fill="#0B0F0D"/><circle cx="17.3" cy="40.5" r="4.2" fill="#0B0F0D"/><circle cx="17.3" cy="23.5" r="4.2" fill="#0B0F0D"/></svg>
     AjoLabs
   </div>
-  <div class="pill" id="mode"></div>
+  <div style="display:flex;align-items:center;gap:14px"><a class="nav" href="/how-it-works.html">How it works</a><div class="pill" id="mode"></div></div>
 </header>
 <main id="app"></main>
 
@@ -75,7 +77,7 @@ const naira = n => '₦' + Number(n).toLocaleString('en-NG');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // Bank codes are placeholders. Swap for the bank IDs Paga expects.
 const BANKS = [['Access Bank', '044'], ['GTBank', '058'], ['First Bank', '011'], ['UBA', '033'], ['Zenith Bank', '057'], ['Wema Bank', '035'], ['Sterling Bank', '232'], ['Opay', '999992'], ['Kuda', '50211'], ['Moniepoint', '50515']];
-let mode = 'mock', cid = new URLSearchParams(location.search).get('c'), timer = null, tick = null, deadline = null, cycle = 7;
+let skew = 0, mode = 'mock', cid = new URLSearchParams(location.search).get('c'), timer = null, tick = null, deadline = null, cycle = 7;
 
 async function api(path, body) {
   const opt = body === undefined ? undefined : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
@@ -149,65 +151,84 @@ function orbit(c) {
     const a = (-90 + (360 / c.maxMembers) * i) * Math.PI / 180, x = cx + R * Math.cos(a), y = cy + R * Math.sin(a), m = c.members[i];
     const isRecv = c.status === 'active' && i === c.round - 1;
     if (!m) { html += `<div class="seat empty" style="left:${x}px;top:${y}px">+</div>`; continue; }
-    const cls = c.status === 'filling' ? 'waiting' : (m.paid ? 'paid' : 'waiting');
-    html += `<div class="seat ${cls} ${isRecv ? 'recv' : ''}" style="left:${x}px;top:${y}px">${esc(m.name[0].toUpperCase())}${m.paid ? '<i>✓</i>' : ''}</div>`;
+    const done = c.status === 'deposits' ? m.deposit > 0 : (c.status === 'active' && m.paid);
+    html += `<div class="seat ${done ? 'paid' : 'waiting'} ${isRecv ? 'recv' : ''}" style="left:${x}px;top:${y}px">${esc(m.name[0].toUpperCase())}${done ? '<i>✓</i>' : ''}</div>`;
     if (isRecv && i === 0) html += `<div class="recvtag" style="left:${cx + (R + 52) * Math.cos(a)}px;top:${cy + (R + 52) * Math.sin(a)}px">RECEIVES</div>`;
   }
-  const paid = c.members.filter(m => m.paid).length, pot = c.amount * c.maxMembers;
+  const paid = c.members.filter(m => m.paid).length, deps = c.members.filter(m => m.deposit > 0).length;
   const hub = c.status === 'filling' ? `<b>${c.members.length}/${c.maxMembers}</b><span>seats taken</span>`
-    : c.status === 'completed' ? `<b>Done</b><span>everyone was paid</span>` : `<b>${naira(paid * c.amount)}</b><span>of ${naira(pot)}</span>`;
+    : c.status === 'deposits' ? `<b>${deps}/${c.maxMembers}</b><span>deposits paid</span>`
+    : c.status === 'completed' ? `<b>Done</b><span>everyone was paid</span>` : `<b>${naira(paid * c.amount)}</b><span>of ${naira(c.pot)}</span>`;
   return `<div class="stage">${html}<div class="hub">${hub}</div></div>`;
 }
 const fmtCd = ms => { if (ms <= 0) return 'Deadline passed'; const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return `${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s % 60).padStart(2, '0')}s`; };
 
 function viewCircle(c) {
   deadline = c.deadline; const mine = c.members.find(m => m.id === me());
-  const pot = c.amount * c.maxMembers, fee = Math.floor(pot / 100);
   const link = location.origin + location.pathname + '?c=' + c.id;
-  const youPaid = mine && mine.paid;
+  const freq = c.cycleDays === 7 ? 'weekly' : c.cycleDays === 14 ? 'every 2 weeks' : 'monthly';
+  const btn = (id, t, dis) => `<button class="btn" id="${id}" ${dis ? 'disabled' : ''}>${t}</button>`;
   let action = '';
-  if (c.status === 'active' && mine && !youPaid) action = `<button class="btn" id="pay">Pay ${naira(c.amount)} with Paga</button>`;
-  else if (c.status === 'active' && mine) action = `<button class="btn" disabled>You have paid this round</button>`;
-  const when = c.round === 1 ? 'Round 1 funding window' : `Round ${c.round} countdown`;
+  if (c.status === 'deposits' && mine) action = mine.deposit ? btn('x', 'Deposit paid. Waiting for the others', 1) : btn('dep', `Pay ${naira(c.amount)} deposit with Paga`);
+  else if (c.status === 'active' && mine) action = mine.paid ? btn('x', 'You have paid this round', 1) : btn('pay', `Pay ${naira(c.amount)} with Paga`);
+  const settle = c.canSettle ? `<div class="card warn"><b>The deadline and grace period have passed.</b> Anyone can run settlement. Each missed payment is covered from the member's holdback, then their deposit, then the default pool, and the member gets a default mark.<button class="btn" id="settle">Run settlement</button></div>` : '';
+  const prot = mine && (c.status === 'deposits' || c.status === 'active') ? `<div class="card" style="margin-top:16px"><div class="eyebrow" style="margin:0 0 6px">Your protection</div><table>
+    <tr><td>Deposit held</td><td>${naira(mine.deposit)}</td></tr><tr><td>Holdback held</td><td>${naira(mine.hb)}</td></tr>
+    <tr><td>Trust tier</td><td>${esc(mine.tierLabel)}</td></tr><tr><td>Holdback on your payout</td><td>${mine.tierPct}%</td></tr></table>
+    <div class="tag" style="margin-top:8px">Deposits come back at the end. <a class="nav" href="/how-it-works.html" style="color:var(--mint)">How it works</a></div></div>` : '';
   const inv = c.status === 'filling' ? `
     <div class="card" style="margin-top:16px"><div class="eyebrow" style="margin:0 0 6px">Invite members</div>
       <div class="tag">Only people with this link can join.</div>
       <div class="copy"><input readonly value="${link}" id="lnk"><button class="btn ghost" id="cp">Copy</button></div>
       <a class="btn" style="text-align:center;text-decoration:none;margin-top:10px" target="_blank" href="https://wa.me/?text=${encodeURIComponent('Join my Ajo circle "' + c.name + '": ' + link)}">Share on WhatsApp</a></div>` : '';
-  const demo = mode === 'mock' ? `<div class="demo"><div class="tag">Demo tools (mock mode only)</div>
-    ${c.status === 'filling' ? '<button class="btn ghost sm" id="dfill">Fill the empty seats with demo members</button>' : ''}
-    ${c.status === 'active' ? '<button class="btn ghost sm" id="dpay">Make everyone else pay</button>' : ''}</div>` : '';
-  const recv = c.receiver ? `<tr class="hl"><td>${esc(c.receiver)} receives</td><td>${naira(pot - fee)}</td></tr>` : '';
+  let demo = '';
+  if (mode === 'mock') {
+    const b2 = (id, t) => `<button class="btn ghost sm" id="${id}">${t}</button>`;
+    demo = `<div class="demo"><div class="tag">Demo tools (mock mode only)</div>` +
+      (c.status === 'filling' ? b2('dfill', 'Fill the empty seats with demo members') : '') +
+      (c.status === 'deposits' ? b2('ddep', 'Make everyone else pay their deposit') : '') +
+      (c.status === 'active' ? b2('dpay', 'Make everyone else pay') + b2('dpay1', 'Everyone else pays, except one') + b2('dskip', 'Skip to the deadline and grace period') : '') + '</div>';
+  }
+  const rows = c.status === 'active' ? `<tr><td>Holdback kept (${c.receiverPct}%)</td><td>−${naira(c.receiverHoldback)}</td></tr><tr class="hl"><td>${esc(c.receiver)} receives</td><td>${naira(c.receiverNet)}</td></tr>` : '';
   const led = c.ledger.slice(-8).reverse().map(l => `<li><time>${new Date(l.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time><span>${esc(l.text)}</span></li>`).join('');
+  const top = c.status === 'filling' ? 'Filling up' : c.status === 'deposits' ? 'Deposits' : c.status === 'completed' ? 'Complete' : 'Round ' + c.round + ' of ' + c.maxMembers;
+  const cd = c.status === 'active' ? `<div class="card" style="margin-top:20px"><div class="tag">${c.round === 1 ? 'Round 1 funding window' : 'Round ' + c.round + ' countdown'}</div><div class="cd" id="cd">${fmtCd(c.deadline - c.now)}</div>
+        <div class="tag" style="margin-top:6px">${c.round === 1 ? 'Everyone has 24 hours to fund round 1.' : 'A fresh countdown starts after every payout. Then 24 hours of grace.'}</div></div>`
+    : c.status === 'deposits' ? `<div class="card" style="margin-top:20px"><div class="tag">Before round 1</div><div style="font-size:15px;line-height:1.6;margin-top:6px">Everyone pays a ${naira(c.amount)} deposit. It is held for the whole circle and returned at the end.</div></div>` : '';
+  skew = c.now - Date.now();
   $('#app').innerHTML = `
   <div class="grid">
     <div>
-      <div class="eyebrow">${c.status === 'filling' ? 'Filling up' : c.status === 'completed' ? 'Complete' : 'Round ' + c.round + ' of ' + c.maxMembers}</div>
+      <div class="eyebrow">${top}</div>
       <h1 style="font-size:clamp(30px,5vw,46px)">${esc(c.name)}</h1>
-      <p class="sub" style="margin-top:8px">${naira(c.amount)} each, ${c.cycleDays === 7 ? 'weekly' : c.cycleDays === 14 ? 'every 2 weeks' : 'monthly'}</p>
-      ${c.status === 'active' ? `<div class="card" style="margin-top:20px"><div class="tag">${when}</div><div class="cd" id="cd">${fmtCd(c.deadline - Date.now())}</div>
-        ${c.round > 1 ? '<div class="tag" style="margin-top:6px">A fresh countdown starts after every payout.</div>' : '<div class="tag" style="margin-top:6px">Everyone has 24 hours to fund round 1.</div>'}</div>` : ''}
-      ${action}${inv}${demo}<div class="err" id="err"></div>
+      <p class="sub" style="margin-top:8px">${naira(c.amount)} each, ${freq}</p>
+      ${cd}${settle}${action}${prot}${inv}${demo}<div class="err" id="err"></div>
     </div>
     <div>
       ${orbit(c)}
-      <div class="card" style="margin-top:22px"><table><tr><td>Pot</td><td>${naira(pot)}</td></tr><tr><td>Service fee (1%)</td><td>${naira(fee)}</td></tr>${recv}</table></div>
+      <div class="card" style="margin-top:22px"><table><tr><td>Pot</td><td>${naira(c.pot)}</td></tr><tr><td>Service fee (1%)</td><td>${naira(c.fee)}</td></tr>${rows}<tr><td>Default pool</td><td>${naira(c.pool)}</td></tr></table></div>
       <div class="card" style="margin-top:16px"><div class="eyebrow" style="margin:0 0 6px">Activity</div><ul class="led">${led}</ul></div>
     </div>
   </div>`;
   const on = (id, fn) => { const el = $(id); if (el) el.onclick = async () => { try { el.disabled = true; await fn(); } catch (e) { $('#err').textContent = e.message; el.disabled = false; } }; };
+  const others = f => c.members.filter(m => m.id !== me() && f(m));
+  const pays = async (list, kind) => { for (const m of list) { const r = await api(`/api/circles/${cid}/${kind}/${m.id}`, {}); await api('/api/dev/simulate-pay', { reference: r.reference }); } load(); };
   on('#cp', async () => { try { await navigator.clipboard.writeText(link); $('#cp').textContent = 'Copied'; } catch { $('#lnk').select(); } $('#cp').disabled = false; });
-  on('#pay', () => payFlow(c));
+  on('#dep', () => payFlow(c, 'deposit')); on('#pay', () => payFlow(c, 'pay'));
+  on('#settle', async () => { await api(`/api/circles/${cid}/settle`, {}); load(); });
+  on('#ddep', () => pays(others(m => !m.deposit), 'deposit'));
+  on('#dpay', () => pays(others(m => !m.paid), 'pay'));
+  on('#dpay1', () => { const l = others(m => !m.paid); l.pop(); return pays(l, 'pay'); });
+  on('#dskip', async () => { await api('/api/dev/skip-time', { id: cid }); load(); });
   on('#dfill', async () => { const names = ['Tunde', 'Amina', 'Nne', 'Yusuf', 'Ife', 'Bola', 'Chidi', 'Zainab', 'Kemi']; let i = 0;
     for (let k = c.members.length; k < c.maxMembers; k++) await api(`/api/circles/${cid}/join`, { name: names[i++], phone: '0800000000' + i, bankCode: '058', accountNumber: '01234567' + (10 + i) }); load(); });
-  on('#dpay', async () => { for (const m of c.members) if (!m.paid && m.id !== me()) { const r = await api(`/api/circles/${cid}/pay/${m.id}`, {}); await api('/api/dev/simulate-pay', { reference: r.reference }); } load(); });
 }
 
-async function payFlow(c) {
-  const r = await api(`/api/circles/${cid}/pay/${me()}`, {});
+async function payFlow(c, kind) {
+  const r = await api(`/api/circles/${cid}/${kind}/${me()}`, {});
   if (mode !== 'mock') { location.href = r.checkoutUrl; return; }
   const m = document.createElement('div'); m.className = 'modal';
-  m.innerHTML = `<div class="card"><div class="eyebrow">Paga checkout (demo)</div><h1 style="font-size:28px">Pay ${naira(c.amount)}</h1>
+  m.innerHTML = `<div class="card"><div class="eyebrow">Paga checkout (demo)</div><h1 style="font-size:28px">${kind === 'deposit' ? 'Pay deposit ' : 'Pay '}${naira(c.amount)}</h1>
     <p class="sub" style="font-size:14px">In live mode this opens Paga. Here we fake the payment so you can see the whole flow.</p>
     <button class="btn" id="ok">Simulate successful payment</button><button class="btn ghost" id="no">Cancel</button></div>`;
   document.body.appendChild(m);
@@ -227,7 +248,7 @@ function route() {
   clearInterval(timer); clearInterval(tick);
   if (!cid) return viewCreate();
   load(); timer = setInterval(() => { if (!document.activeElement || !['INPUT', 'SELECT'].includes(document.activeElement.tagName)) load(); }, 3000);
-  tick = setInterval(() => { const el = $('#cd'); if (el && deadline) el.textContent = fmtCd(deadline - Date.now()); }, 1000);
+  tick = setInterval(() => { const el = $('#cd'); if (el && deadline) el.textContent = fmtCd(deadline - (Date.now() + skew)); }, 1000);
 }
 fetch('/health').then(r => r.json()).then(h => { mode = h.mode; $('#mode').textContent = mode === 'mock' ? 'Demo mode' : 'Paga test mode'; }).catch(() => {}).finally(route);
 window.onpopstate = () => { cid = new URLSearchParams(location.search).get('c'); route(); };

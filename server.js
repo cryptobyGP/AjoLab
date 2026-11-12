@@ -24,7 +24,14 @@ http.createServer(async (req, res) => {
       return send(res, 200, await circle.markPaid(reference));
     }
 
+    if (paga.MODE === 'mock' && m === 'POST' && p === '/api/dev/skip-time') {      // demo helper, mock mode only
+      const { id } = JSON.parse((await readBody(req)) || '{}'); circle.skipTime(id);
+      return send(res, 200, circle.status(id));
+    }
+
     let mt;
+    if ((mt = p.match(/^\/api\/circles\/(\w+)\/settle$/)) && m === 'POST') { await circle.settle(mt[1]); return send(res, 200, circle.status(mt[1])); }
+    if ((mt = p.match(/^\/api\/circles\/(\w+)\/deposit\/(\w+)$/)) && m === 'POST') return send(res, 200, await circle.requestPayment(mt[1], mt[2], 'deposit'));
     if (m === 'POST' && p === '/api/circles') return send(res, 201, circle.status(circle.createCircle(JSON.parse(await readBody(req))).id));
     if ((mt = p.match(/^\/api\/circles\/(\w+)$/)) && m === 'GET') return send(res, 200, circle.status(mt[1]));
     if ((mt = p.match(/^\/api\/circles\/(\w+)\/join$/)) && m === 'POST') { circle.joinCircle(mt[1], JSON.parse(await readBody(req))); return send(res, 200, circle.status(mt[1])); }
