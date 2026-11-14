@@ -5,10 +5,11 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const DB_FILE = process.env.DB_FILE || './data.json';
-const URL_ = (process.env.UPSTASH_REDIS_REST_URL || '').replace(/\/$/, '');
-const TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const tidy = v => (v || '').trim().replace(/^["']+|["']+$/g, '').trim();
+const URL_ = tidy(process.env.UPSTASH_REDIS_REST_URL).replace(/\/$/, '');
+const TOKEN = tidy(process.env.UPSTASH_REDIS_REST_TOKEN);
 const KEY = process.env.DB_KEY || 'ajolabs:db';
-const REMOTE = !!(URL_ && TOKEN);
+let REMOTE = !!(URL_ && TOKEN);
 
 const db = { circles: {}, refs: {}, users: {} };
 const cmd = async c => {
@@ -19,8 +20,11 @@ const cmd = async c => {
 };
 
 async function init() {
-  if (REMOTE) { const v = await cmd(['GET', KEY]); if (v) Object.assign(db, JSON.parse(v)); console.log('Data store: Upstash,', Object.keys(db.users).length, 'users loaded'); }
-  else { try { Object.assign(db, JSON.parse(fs.readFileSync(DB_FILE, 'utf8'))); } catch {} console.log('Data store: local file (resets on Render restart)'); }
+  if (REMOTE) {
+    try { const v = await cmd(['GET', KEY]); if (v) Object.assign(db, JSON.parse(v)); console.log('Data store: Upstash,', Object.keys(db.users).length, 'users loaded'); return; }
+    catch (e) { console.error('UPSTASH NOT WORKING, check the URL and token in Render:', e.message); REMOTE = false; }
+  }
+  { try { Object.assign(db, JSON.parse(fs.readFileSync(DB_FILE, 'utf8'))); } catch {} console.log('Data store: local file (resets on Render restart)'); }
 }
 
 let timer = null, dirty = false, inflight = Promise.resolve();
@@ -38,4 +42,4 @@ function save() {
 process.on('SIGTERM', async () => { clearTimeout(timer); await flush().catch(() => {}); process.exit(0); });
 
 const id = (n = 6) => crypto.randomBytes(n).toString('hex');
-module.exports = { db, save, id, init, flush, REMOTE };
+module.exports = { db, save, id, init, flush, get REMOTE() { return REMOTE; } };
