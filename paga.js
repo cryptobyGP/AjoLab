@@ -33,11 +33,11 @@ async function call(path, body, fieldsToSign) {
 }
 
 // Ask a member to pay their share. Returns a reference we match against the webhook.
-async function requestPayment({ reference, amount, payerName, payerPhone }) {
+async function requestPayment({ reference, amount, payerName, payerPhone, payerEmail }) {
   if (MODE === 'mock') return { reference, checkoutUrl: `/mock-pay?ref=${reference}` };
   // TODO: use the collect / payment-request endpoint from the docs.
   const data = await call('/PATH_FOR_PAYMENT_REQUEST', {
-    referenceNumber: reference, amount, currency: 'NGN', payer: { name: payerName, phoneNumber: payerPhone },
+    referenceNumber: reference, amount, currency: 'NGN', payer: { name: payerName, phoneNumber: payerPhone, email: payerEmail },
     callbackUrl: process.env.PUBLIC_URL + '/webhooks/paga',
   }, [reference, String(amount)]);
   return { reference, checkoutUrl: data.checkoutUrl || data.paymentUrl || null, raw: data };

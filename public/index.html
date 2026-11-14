@@ -1,257 +1,354 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AjoLabs</title>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#0b0f0d;--tx:#f0f4f2;--mut:#96a09e;--dim:#606a68;--mint:#a8e8c5;--green:#64dea0;--line:rgba(255,255,255,.1);--card:rgba(255,255,255,.04);--red:#ec705c}
-*{box-sizing:border-box;margin:0}
-html,body{min-height:100%}
-body{background:linear-gradient(180deg,#0e1316,#0a0e0d);color:var(--tx);font-family:Poppins,system-ui,sans-serif;font-weight:400;-webkit-font-smoothing:antialiased}
-.glow{position:fixed;inset:0;pointer-events:none;background:radial-gradient(520px 520px at 85% 0%,rgba(20,70,45,.55),transparent 70%),radial-gradient(420px 420px at 0% 100%,rgba(14,22,46,.6),transparent 70%)}
-header{position:relative;display:flex;align-items:center;justify-content:space-between;padding:20px 24px;max-width:1100px;margin:0 auto}
-.brand{display:flex;align-items:center;gap:10px;font-weight:500;font-size:20px}
-.nav{color:var(--mut);text-decoration:none;font-size:14px}.nav:hover{color:var(--tx)}
-.warn{border-color:rgba(236,112,92,.5);background:rgba(236,112,92,.07);margin-top:16px;font-size:14px;line-height:1.55}.warn b{font-weight:500}
-.pill{font-size:12px;color:var(--mint);border:1px solid rgba(100,222,160,.4);background:rgba(100,222,160,.1);padding:5px 12px;border-radius:99px}
-main{position:relative;max-width:1100px;margin:0 auto;padding:8px 24px 80px}
-.eyebrow{font-size:12px;letter-spacing:.14em;color:var(--mut);text-transform:uppercase;margin-bottom:12px}
-h1{font-weight:300;font-size:clamp(34px,6vw,56px);line-height:1.12}
-h1 em{font-style:normal;color:var(--mint)}
-.sub{color:var(--mut);margin-top:14px;font-size:15px;max-width:460px;line-height:1.6}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
-@media(max-width:820px){.grid{grid-template-columns:1fr;gap:28px}}
-.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px}
-label{display:block;font-size:12px;color:var(--mut);margin:14px 0 6px}
-input,select{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--tx);border-radius:14px;padding:13px 14px;font:inherit;font-size:15px;outline:none}
-input:focus,select:focus{border-color:rgba(100,222,160,.6)}
-select option{background:#12181a}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.seg{display:flex;border:1px solid var(--line);border-radius:99px;padding:4px;gap:4px}
-.seg button{flex:1;background:none;border:0;color:var(--mut);padding:10px;border-radius:99px;font:inherit;font-size:14px;cursor:pointer}
-.seg button.on{background:rgba(255,255,255,.1);color:var(--tx)}
-.btn{display:block;width:100%;margin-top:22px;border:0;border-radius:99px;padding:15px 20px;font:inherit;font-weight:500;font-size:16px;cursor:pointer;color:#0b1a12;background:linear-gradient(135deg,#b9f7d6,#3fd68b)}
-.btn.ghost{background:none;color:var(--tx);border:1px solid var(--line);margin-top:10px}
-.btn:disabled{opacity:.45;cursor:default}
-.err{color:var(--red);font-size:13px;margin-top:12px;min-height:18px}
-.tag{font-size:12px;color:var(--mut)}
-.stage{position:relative;width:340px;height:340px;margin:0 auto}
-.ring{position:absolute;inset:6px;border-radius:50%;border:8px solid rgba(255,255,255,.08)}
-.hub{position:absolute;left:50%;top:50%;width:150px;height:150px;margin:-75px;border-radius:50%;background:#080c0b;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;box-shadow:0 0 70px rgba(63,214,139,.18)}
-.hub b{font-weight:500;font-size:26px}.hub span{font-size:12px;color:var(--mut)}
-.seat{position:absolute;width:56px;height:56px;margin:-28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:18px;color:#0b1a12;transition:all .4s}
-.seat.empty{border:1.5px dashed rgba(255,255,255,.25);color:var(--dim);background:none}
-.seat.waiting{background:radial-gradient(circle at 35% 30%,#78828a,#343c3e 60%,#1b2122);color:#aab3b1}
-.seat.paid{background:radial-gradient(circle at 35% 30%,#d4ffe8,#50d795 55%,#196a47)}
-.seat.recv{box-shadow:0 0 0 4px rgba(168,232,197,.35)}
-.seat i{position:absolute;right:-4px;bottom:-4px;width:20px;height:20px;border-radius:50%;background:#0c1412;border:1px solid var(--mint);color:var(--mint);font-size:11px;font-style:normal;display:flex;align-items:center;justify-content:center}
-.recvtag{position:absolute;font-size:10px;letter-spacing:.1em;color:var(--mint);transform:translate(-50%,-50%)}
-table{width:100%;border-collapse:collapse}td{padding:7px 0;font-size:15px;color:var(--mut)}td:last-child{text-align:right;color:var(--tx);font-weight:500}tr.hl td:last-child{color:var(--mint)}
-.cd{font-size:30px;font-weight:300;font-variant-numeric:tabular-nums}
-.led{list-style:none;padding:0;font-size:14px;color:var(--mut)}.led li{padding:9px 0;border-top:1px solid var(--line);display:flex;gap:10px}.led li:first-child{border-top:0}.led time{color:var(--dim);min-width:64px;white-space:nowrap}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--green);margin-top:8px;flex:none}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9}
-.modal .card{max-width:380px;width:100%;background:#10161a}
-.demo{margin-top:20px;border:1px dashed rgba(255,255,255,.2);border-radius:18px;padding:16px}
-.demo .tag{margin-bottom:6px}
-.sm{padding:11px 14px;font-size:14px;margin-top:8px}
-.copy{display:flex;gap:8px;margin-top:10px}.copy input{font-size:13px}.copy button{flex:none;width:auto;margin:0;padding:0 18px}
-</style>
+<link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<div class="glow"></div>
-<header>
-  <div class="brand">
-    <svg width="30" height="30" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B9F7D6"/><stop offset="1" stop-color="#3FD68B"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="url(#g)"/><circle cx="32" cy="32" r="17" fill="none" stroke="#0B0F0D" stroke-opacity=".35" stroke-width="1.5"/><circle cx="32" cy="15" r="6" fill="#0B0F0D"/><circle cx="46.7" cy="23.5" r="4.2" fill="#0B0F0D"/><circle cx="46.7" cy="40.5" r="4.2" fill="#0B0F0D"/><circle cx="32" cy="49" r="4.2" fill="#0B0F0D"/><circle cx="17.3" cy="40.5" r="4.2" fill="#0B0F0D"/><circle cx="17.3" cy="23.5" r="4.2" fill="#0B0F0D"/></svg>
-    AjoLabs
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B9F7D6"/><stop offset="1" stop-color="#3FD68B"/></linearGradient>
+  </defs>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <clipPath id="arbclip"><path d="M50 10L84.6 30V70L50 90L15.4 70V30Z"/></clipPath>
+    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B9F7D6"/><stop offset="1" stop-color="#3FD68B"/></linearGradient>
+    <linearGradient id="solg" gradientUnits="userSpaceOnUse" x1="0" y1="311" x2="397" y2="0"><stop offset="0" stop-color="#9945FF"/><stop offset="1" stop-color="#14F195"/></linearGradient>
+  </defs>
+  <symbol id="mark" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="18" fill="url(#lg)"/>
+    <circle cx="32" cy="32" r="17" fill="none" stroke="#0B0F0D" stroke-opacity=".35" stroke-width="1.5"/>
+    <circle cx="32" cy="15" r="6" fill="#0B0F0D"/><circle cx="46.7" cy="23.5" r="4.2" fill="#0B0F0D"/><circle cx="46.7" cy="40.5" r="4.2" fill="#0B0F0D"/>
+    <circle cx="32" cy="49" r="4.2" fill="#0B0F0D"/><circle cx="17.3" cy="40.5" r="4.2" fill="#0B0F0D"/><circle cx="17.3" cy="23.5" r="4.2" fill="#0B0F0D"/>
+  </symbol>
+  <symbol id="check" viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="cross" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="arrow" viewBox="0 0 20 20"><path d="M6 14L14 6M7 6h7v7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="copy" viewBox="0 0 20 20"><rect x="7" y="7" width="9" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="lock" viewBox="0 0 20 20"><rect x="4" y="9" width="12" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M7 9V6.5a3 3 0 0 1 6 0V9" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+  <symbol id="eye" viewBox="0 0 20 20"><path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="10" r="2.3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="shield" viewBox="0 0 20 20"><path d="M10 2.5l6 2.2v4.6c0 3.7-2.5 6.3-6 8.2-3.5-1.9-6-4.5-6-8.2V4.7l6-2.2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.2 10l2 2 3.6-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="wallet" viewBox="0 0 20 20"><rect x="2.5" y="5" width="15" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13.5 10.5h4v3h-4a1.5 1.5 0 0 1 0-3z" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="refresh" viewBox="0 0 20 20"><path d="M16 8a6.5 6.5 0 1 0 .8 4M16.5 3.5V8H12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="plus" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="swap" viewBox="0 0 20 20"><path d="M4 7h11M12 4l3 3-3 3M16 13H5M8 10l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="okcircle" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" stroke-width="3"/><path d="M20 33l8 8 16-17" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="welcome" id="welcome">
+  <div class="wbox">
+    <svg class="logo" aria-hidden="true"><use href="#mark"/></svg>
+    <h1>AjoLabs</h1>
+    <p class="wn">Hackathon Prototype on Paga Engine. Test Money only. The name AjoLabs is a Placeholder.</p>
+    <button class="pill block gbtn" id="wGoogle" style="background:#fff;color:#111316"><svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg><span>Continue with Google</span></button>
+    <div class="or">or</div>
+    <input id="wEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" aria-label="Email address">
+    <button class="pill block abtn" id="wContinue">Continue with email</button>
+    <div class="err" id="wErr" role="alert"></div>
+    <p class="why">An account lets AjoLabs confirm your payments, tell you when a payout lands and email your receipts.</p>
+    <p class="why" id="wDemo" style="display:none">Demo sign-in: Privy is not set up on this server yet, so any email works for testing.</p>
   </div>
-  <div style="display:flex;align-items:center;gap:14px"><a class="nav" href="/how-it-works.html">How it works</a><div class="pill" id="mode"></div></div>
-</header>
-<main id="app"></main>
+</div>
 
-<script>
-const $ = s => document.querySelector(s);
-const naira = n => '₦' + Number(n).toLocaleString('en-NG');
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-// Bank codes are placeholders. Swap for the bank IDs Paga expects.
-const BANKS = [['Access Bank', '044'], ['GTBank', '058'], ['First Bank', '011'], ['UBA', '033'], ['Zenith Bank', '057'], ['Wema Bank', '035'], ['Sterling Bank', '232'], ['Opay', '999992'], ['Kuda', '50211'], ['Moniepoint', '50515']];
-let skew = 0, mode = 'mock', cid = new URLSearchParams(location.search).get('c'), timer = null, tick = null, deadline = null, cycle = 7;
-
-async function api(path, body) {
-  const opt = body === undefined ? undefined : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
-  const r = await fetch(path, opt); const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error || 'Something went wrong'); return j;
-}
-const meKey = () => 'ajo_me_' + cid;
-const me = () => { try { return localStorage.getItem(meKey()); } catch { return null; } };
-const setMe = id => { try { localStorage.setItem(meKey(), id); } catch {} };
-const bankOpts = BANKS.map(([n, c]) => `<option value="${c}">${n}</option>`).join('');
-const personFields = `
-  <label>Your name</label><input id="pname" placeholder="e.g. Emem" autocomplete="name">
-  <div class="row"><div><label>Phone</label><input id="pphone" inputmode="tel" placeholder="080..."></div><div><label>Bank</label><select id="pbank">${bankOpts}</select></div></div>
-  <label>Account number (where your payout goes)</label><input id="pacct" inputmode="numeric" maxlength="10" placeholder="10 digits">`;
-const person = () => ({ name: $('#pname').value.trim(), phone: $('#pphone').value.trim(), bankCode: $('#pbank').value, accountNumber: $('#pacct').value.trim() });
-function needPerson(p) { if (!p.name) throw new Error('Add your name'); if (!/^\d{10}$/.test(p.accountNumber)) throw new Error('Account number should be 10 digits'); }
-
-/* ---------- create ---------- */
-function viewCreate() {
-  clearInterval(timer); clearInterval(tick);
-  $('#app').innerHTML = `
-  <div class="grid">
-    <div style="padding-top:20px">
-      <div class="eyebrow">AjoLabs</div>
-      <h1>Save together.<br><em>Paid out by Paga.</em></h1>
-      <p class="sub">Start a private savings circle with people you trust. Everyone pays in, one person receives the pot each round, and the countdown restarts after every payout.</p>
+<div class="site" id="site">
+  <header class="top" id="top">
+    <a class="brandlink" href="#hero" aria-label="AjoLabs home"><svg class="logo" aria-hidden="true"><use href="#mark"/></svg><span>AjoLabs</span></a>
+    <nav class="dnav" aria-label="Sections"><a href="#compare">Why Paga</a><a href="#collateral">Protection</a><a href="#paga">Paga</a><a href="#scale">Roadmap</a><a href="#token">Rewards</a></nav>
+    <div class="topr">
+      <button class="pill mint" data-open="portfolio">Open app <svg class="i" aria-hidden="true"><use href="#arrow"/></svg></button>
+      <button class="menu" id="menuBtn" aria-label="Menu" aria-expanded="false" aria-controls="menuSheet"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M5 10h18M5 18h18" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>
-    <div class="card">
-      <label style="margin-top:0">Circle name</label><input id="cname" placeholder="e.g. Oron Girls Ajo">
-      <div class="row"><div><label>Each person pays (₦)</label><input id="camt" inputmode="numeric" value="5000"></div>
-      <div><label>Members (3 to 10)</label><input id="cmax" inputmode="numeric" value="5"></div></div>
-      <label>How often</label>
-      <div class="seg" id="cseg"><button data-d="7" class="on">Weekly</button><button data-d="14">Every 2 weeks</button><button data-d="30">Monthly</button></div>
-      ${personFields}
-      <div class="err" id="err"></div>
-      <button class="btn" id="go" style="margin-top:8px">Create circle</button>
+  </header>
+  <nav class="menusheet" id="menuSheet" aria-label="Site menu">
+    <a href="#compare">Why Paga</a><a href="#collateral">Protection</a><a href="#trust">Safety</a><a href="#paga">Paga</a><a href="#scale">Roadmap</a><a href="#token">Rewards</a>
+    <a href="/how-it-works.html">Full rules</a>
+    <button class="ml" data-open="portfolio">Open app</button>
+  </nav>
+
+  <main>
+    <div class="wrap">
+      <section class="bigcard" id="hero">
+        <div class="eyebrow">Save together</div>
+        <h1>Save together. <span class="grad">Get paid</span> safely.</h1>
+        <p class="lead">Rotating savings circles in naira. Every payment is collected and every payout is sent through Paga, with rules that protect everyone in the circle. Hackathon prototype.</p>
+        <div class="stack">
+          <button class="pill" data-open="create">Start a circle</button>
+          <a class="pill outline" href="#compare">See why it works</a>
+        </div>
+        <div class="builton"><img class="paga" src="/paga-logo.svg" alt="Paga"><b>Everything on Paga</b></div>
+        <div class="demo gb spot">
+          <div class="demohead"><span class="lab">Watch a round</span><span class="ptag">Sample circle</span></div>
+          <div class="vizwrap"><canvas id="heroCanvas" role="img" aria-label="Animated diagram: five members around a pot that fills as they pay, then pays out to one member"></canvas></div>
+          <div class="segc" id="demoTabs"></div>
+          <p class="democap" id="demoCap"></p>
+        </div>
+        <div class="inner">
+          <div class="cap">What the rules allow</div>
+          <div class="kv"><span>Organizer withdraw</span><span>Does not exist <svg class="i chk" aria-hidden="true"><use href="#check"/></svg></span></div>
+          <div class="kv"><span>Payout order</span><span>Fixed at start <svg class="i chk" aria-hidden="true"><use href="#check"/></svg></span></div>
+          <div class="kv"><span>Missed payment</span><span>Deposit and holdback <svg class="i chk" aria-hidden="true"><use href="#check"/></svg></span></div>
+          <div class="kv"><span>Who can join</span><span>Invite only <svg class="i chk" aria-hidden="true"><use href="#check"/></svg></span></div>
+        </div>
+      </section>
     </div>
-  </div>`;
-  cycle = 7;
-  document.querySelectorAll('#cseg button').forEach(b => b.onclick = () => { document.querySelectorAll('#cseg button').forEach(x => x.classList.remove('on')); b.classList.add('on'); cycle = +b.dataset.d; });
-  $('#go').onclick = async () => {
-    try {
-      const p = person(); needPerson(p); $('#go').disabled = true;
-      const c = await api('/api/circles', { name: $('#cname').value.trim() || 'My Ajo', amount: +$('#camt').value, maxMembers: +$('#cmax').value, cycleDays: cycle, creator: p });
-      cid = c.id; setMe(c.members[0].id); history.pushState({}, '', '?c=' + cid); route();
-    } catch (e) { $('#err').textContent = e.message; $('#go').disabled = false; }
-  };
-}
 
-/* ---------- join ---------- */
-function viewJoin(c) {
-  clearInterval(timer);
-  $('#app').innerHTML = `
-  <div class="grid">
-    <div style="padding-top:20px"><div class="eyebrow">You are invited</div><h1>Join <em>${esc(c.name)}</em></h1>
-      <p class="sub">${naira(c.amount)} each, ${c.cycleDays === 7 ? 'weekly' : c.cycleDays === 14 ? 'every 2 weeks' : 'monthly'}. ${c.members.length} of ${c.maxMembers} seats taken.</p></div>
-    <div class="card">${personFields}<div class="err" id="err"></div><button class="btn" id="go" style="margin-top:8px">Join circle</button></div>
-  </div>`;
-  $('#go').onclick = async () => {
-    try {
-      const p = person(); needPerson(p); $('#go').disabled = true;
-      const r = await api(`/api/circles/${cid}/join`, p); setMe(r.members[r.members.length - 1].id); route();
-    } catch (e) { $('#err').textContent = e.message; $('#go').disabled = false; }
-  };
-}
+    <section class="block" id="compare">
+      <div class="eyebrow" style="margin-bottom:18px">Why Paga</div>
+      <h2>Same Ajo you know. No notebook, no chasing.</h2>
+      <p class="sub">The idea stays the same: everyone pays in, one person takes the pot each round. What changes is how the money moves and who keeps the record.</p>
+      <div class="compare">
+        <div class="ccard old">
+          <h3>Ajo today</h3>
+          <div class="tagline">Works on trust and a notebook</div>
+          <ul>
+            <li><svg class="i x" aria-hidden="true"><use href="#cross"/></svg><span><small>Who holds the money</small>One organizer</span></li>
+            <li><svg class="i x" aria-hidden="true"><use href="#cross"/></svg><span><small>Payout order</small>Agreed in a chat</span></li>
+            <li><svg class="i x" aria-hidden="true"><use href="#cross"/></svg><span><small>A missed payment</small>Awkward calls and chasing</span></li>
+            <li><svg class="i x" aria-hidden="true"><use href="#cross"/></svg><span><small>Records</small>A notebook or a group chat</span></li>
+            <li><svg class="i x" aria-hidden="true"><use href="#cross"/></svg><span><small>If the organizer disappears</small>Everyone loses</span></li>
+          </ul>
+        </div>
+        <div class="ccard gb spot">
+          <h3>Ajo on Paga</h3>
+          <div class="tagline">Works on rules everyone can see</div>
+          <ul>
+            <li><svg class="i ok" aria-hidden="true"><use href="#check"/></svg><span><small>Who holds the money</small>Paga collects, the rules release it</span></li>
+            <li><svg class="i ok" aria-hidden="true"><use href="#check"/></svg><span><small>Payout order</small>Fixed when the circle starts</span></li>
+            <li><svg class="i ok" aria-hidden="true"><use href="#check"/></svg><span><small>A missed payment</small>Deposit and holdback cover it</span></li>
+            <li><svg class="i ok" aria-hidden="true"><use href="#check"/></svg><span><small>Records</small>Receipts and a ledger for everyone</span></li>
+            <li><svg class="i ok" aria-hidden="true"><use href="#check"/></svg><span><small>If the organizer disappears</small>No organizer wallet to run off with</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
 
-/* ---------- circle ---------- */
-function orbit(c) {
-  const R = 125, cx = 170, cy = 170; let html = '<div class="ring"></div>';
-  for (let i = 0; i < c.maxMembers; i++) {
-    const a = (-90 + (360 / c.maxMembers) * i) * Math.PI / 180, x = cx + R * Math.cos(a), y = cy + R * Math.sin(a), m = c.members[i];
-    const isRecv = c.status === 'active' && i === c.round - 1;
-    if (!m) { html += `<div class="seat empty" style="left:${x}px;top:${y}px">+</div>`; continue; }
-    const done = c.status === 'deposits' ? m.deposit > 0 : (c.status === 'active' && m.paid);
-    html += `<div class="seat ${done ? 'paid' : 'waiting'} ${isRecv ? 'recv' : ''}" style="left:${x}px;top:${y}px">${esc(m.name[0].toUpperCase())}${done ? '<i>✓</i>' : ''}</div>`;
-    if (isRecv && i === 0) html += `<div class="recvtag" style="left:${cx + (R + 52) * Math.cos(a)}px;top:${cy + (R + 52) * Math.sin(a)}px">RECEIVES</div>`;
-  }
-  const paid = c.members.filter(m => m.paid).length, deps = c.members.filter(m => m.deposit > 0).length;
-  const hub = c.status === 'filling' ? `<b>${c.members.length}/${c.maxMembers}</b><span>seats taken</span>`
-    : c.status === 'deposits' ? `<b>${deps}/${c.maxMembers}</b><span>deposits paid</span>`
-    : c.status === 'completed' ? `<b>Done</b><span>everyone was paid</span>` : `<b>${naira(paid * c.amount)}</b><span>of ${naira(c.pot)}</span>`;
-  return `<div class="stage">${html}<div class="hub">${hub}</div></div>`;
-}
-const fmtCd = ms => { if (ms <= 0) return 'Deadline passed'; const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return `${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s % 60).padStart(2, '0')}s`; };
+    <section class="block" id="collateral">
+      <div class="lhs">
+        <div class="eyebrow" style="margin-bottom:18px">The hard question</div>
+        <h2>What if someone takes the pot and stops paying?</h2>
+        <p class="sub">Every member puts down a small deposit. When you receive the pot, part of what you still owe is held back and released as you keep paying. Trust lowers the holdback.</p>
+      </div>
+      <div class="rhs">
+        <div class="slotcard gb spot">
+          <div class="sbh"><b>Slot 1, 5 members, ₦5,000 each</b><span class="ptag">Holdback by trust</span></div>
+          <div class="sb2"><span>Upfront deposit</span><b>₦5,000</b></div>
+          <div class="sb2"><span>New member, 10% holdback</span><b>holds ₦2,000, receives ₦22,750</b></div>
+          <div class="sb2"><span>1 to 2 circles finished, 5%</span><b>holds ₦1,000, receives ₦23,750</b></div>
+          <div class="sb2"><span>3 or more finished, 2%</span><b>holds ₦400, receives ₦24,350</b></div>
+          <p class="muted" style="margin-top:12px;font-size:14px">Most of the pot reaches you right away. A good record means even less is held back.</p>
+        </div>
+        <hr class="rule">
+        <div class="item"><h3><svg class="i chk" aria-hidden="true"><use href="#check"/></svg>Deposit up front</h3><p>Every member puts down one payment before the circle starts. It covers a missed payment before their turn and comes back at the end.</p></div>
+        <hr class="rule">
+        <div class="item"><h3><svg class="i chk" aria-hidden="true"><use href="#check"/></svg>Holdback from the payout</h3><p>When you receive the pot, a percentage of what you still owe is held back and released each round as you keep paying.</p></div>
+        <hr class="rule">
+        <div class="item"><h3><svg class="i chk" aria-hidden="true"><use href="#check"/></svg>Settled by the rules</h3><p>If someone stops paying, anyone in the circle can run settlement. The holdback pays first, then the deposit, then a shared default pool.</p></div>
+        <hr class="rule">
+        <div class="item"><h3><svg class="i chk" aria-hidden="true"><use href="#check"/></svg>Trust lowers the cost</h3><p>A clean record lowers your holdback and a default raises it. Vouching, where members back each other, is planned.</p></div>
+        <p class="muted" style="margin-top:26px;font-size:15px;line-height:1.6">Honest limit: with a small holdback, a new member who stops paying can leave a gap the default pool may not fully cover, so a receiver could get a little less. Invite-only circles, visible records and vouching keep that risk low.</p>
+      </div>
+    </section>
 
-function viewCircle(c) {
-  deadline = c.deadline; const mine = c.members.find(m => m.id === me());
-  const link = location.origin + location.pathname + '?c=' + c.id;
-  const freq = c.cycleDays === 7 ? 'weekly' : c.cycleDays === 14 ? 'every 2 weeks' : 'monthly';
-  const btn = (id, t, dis) => `<button class="btn" id="${id}" ${dis ? 'disabled' : ''}>${t}</button>`;
-  let action = '';
-  if (c.status === 'deposits' && mine) action = mine.deposit ? btn('x', 'Deposit paid. Waiting for the others', 1) : btn('dep', `Pay ${naira(c.amount)} deposit with Paga`);
-  else if (c.status === 'active' && mine) action = mine.paid ? btn('x', 'You have paid this round', 1) : btn('pay', `Pay ${naira(c.amount)} with Paga`);
-  const settle = c.canSettle ? `<div class="card warn"><b>The deadline and grace period have passed.</b> Anyone can run settlement. Each missed payment is covered from the member's holdback, then their deposit, then the default pool, and the member gets a default mark.<button class="btn" id="settle">Run settlement</button></div>` : '';
-  const prot = mine && (c.status === 'deposits' || c.status === 'active') ? `<div class="card" style="margin-top:16px"><div class="eyebrow" style="margin:0 0 6px">Your protection</div><table>
-    <tr><td>Deposit held</td><td>${naira(mine.deposit)}</td></tr><tr><td>Holdback held</td><td>${naira(mine.hb)}</td></tr>
-    <tr><td>Trust tier</td><td>${esc(mine.tierLabel)}</td></tr><tr><td>Holdback on your payout</td><td>${mine.tierPct}%</td></tr></table>
-    <div class="tag" style="margin-top:8px">Deposits come back at the end. <a class="nav" href="/how-it-works.html" style="color:var(--mint)">How it works</a></div></div>` : '';
-  const inv = c.status === 'filling' ? `
-    <div class="card" style="margin-top:16px"><div class="eyebrow" style="margin:0 0 6px">Invite members</div>
-      <div class="tag">Only people with this link can join.</div>
-      <div class="copy"><input readonly value="${link}" id="lnk"><button class="btn ghost" id="cp">Copy</button></div>
-      <a class="btn" style="text-align:center;text-decoration:none;margin-top:10px" target="_blank" href="https://wa.me/?text=${encodeURIComponent('Join my Ajo circle "' + c.name + '": ' + link)}">Share on WhatsApp</a></div>` : '';
-  let demo = '';
-  if (mode === 'mock') {
-    const b2 = (id, t) => `<button class="btn ghost sm" id="${id}">${t}</button>`;
-    demo = `<div class="demo"><div class="tag">Demo tools (mock mode only)</div>` +
-      (c.status === 'filling' ? b2('dfill', 'Fill the empty seats with demo members') : '') +
-      (c.status === 'deposits' ? b2('ddep', 'Make everyone else pay their deposit') : '') +
-      (c.status === 'active' ? b2('dpay', 'Make everyone else pay') + b2('dpay1', 'Everyone else pays, except one') + b2('dskip', 'Skip to the deadline and grace period') : '') + '</div>';
-  }
-  const rows = c.status === 'active' ? `<tr><td>Holdback kept (${c.receiverPct}%)</td><td>−${naira(c.receiverHoldback)}</td></tr><tr class="hl"><td>${esc(c.receiver)} receives</td><td>${naira(c.receiverNet)}</td></tr>` : '';
-  const led = c.ledger.slice(-8).reverse().map(l => `<li><time>${new Date(l.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time><span>${esc(l.text)}</span></li>`).join('');
-  const top = c.status === 'filling' ? 'Filling up' : c.status === 'deposits' ? 'Deposits' : c.status === 'completed' ? 'Complete' : 'Round ' + c.round + ' of ' + c.maxMembers;
-  const cd = c.status === 'active' ? `<div class="card" style="margin-top:20px"><div class="tag">${c.round === 1 ? 'Round 1 funding window' : 'Round ' + c.round + ' countdown'}</div><div class="cd" id="cd">${fmtCd(c.deadline - c.now)}</div>
-        <div class="tag" style="margin-top:6px">${c.round === 1 ? 'Everyone has 24 hours to fund round 1.' : 'A fresh countdown starts after every payout. Then 24 hours of grace.'}</div></div>`
-    : c.status === 'deposits' ? `<div class="card" style="margin-top:20px"><div class="tag">Before round 1</div><div style="font-size:15px;line-height:1.6;margin-top:6px">Everyone pays a ${naira(c.amount)} deposit. It is held for the whole circle and returned at the end.</div></div>` : '';
-  skew = c.now - Date.now();
-  $('#app').innerHTML = `
-  <div class="grid">
-    <div>
-      <div class="eyebrow">${top}</div>
-      <h1 style="font-size:clamp(30px,5vw,46px)">${esc(c.name)}</h1>
-      <p class="sub" style="margin-top:8px">${naira(c.amount)} each, ${freq}</p>
-      ${cd}${settle}${action}${prot}${inv}${demo}<div class="err" id="err"></div>
+    <section class="block" id="trust">
+      <div class="lhs">
+        <h2>Nobody runs off with the pot</h2>
+        <p class="sub">Test money only. A full review comes before any real money is used.</p>
+      </div>
+      <div class="rhs">
+        <hr class="rule">
+        <div class="item"><h3><svg class="i chk" aria-hidden="true"><use href="#check"/></svg>No organizer withdraw</h3><p>There is no function that lets the circle's creator take money out. Only the payout rules move it.</p></div>
+        <hr class="rule">
+        <div class="item"><h3><svg class="i chk" aria-hidden="true"><use href="#check"/></svg>Rules fixed at start</h3><p>Amount, group size and payout order are set when the circle starts. Nobody can change them after members join.</p></div>
+        <hr class="rule">
+        <div class="item"><h3><svg class="i chk" aria-hidden="true"><use href="#check"/></svg>A clear schedule</h3><p>The first payout runs as soon as everyone has paid. Every round then gets a fresh countdown that restarts after each payout.</p></div>
+        <hr class="rule">
+        <div class="item"><h3><svg class="i chk" aria-hidden="true"><use href="#check"/></svg>Receipts for everything</h3><p>Every payment and payout creates a receipt in your portfolio and in your email.</p></div>
+        <hr class="rule">
+        <div class="item"><h3><svg class="i chk" aria-hidden="true"><use href="#check"/></svg>A small fee you can see</h3><p>A 1% fee is taken from each payout, and the receiver sees it before the circle starts.</p></div>
+        <hr class="rule">
+        <div class="item"><h3><svg class="i chk" aria-hidden="true"><use href="#check"/></svg>Private by design</h3><p>Circles are invite only, so people save with others they know.</p></div>
+      </div>
+    </section>
+
+    <section class="block" id="paga">
+      <div class="eyebrow" style="margin-bottom:18px">Everything on Paga</div>
+      <h2>Paga moves the money. AjoLabs keeps the rules.</h2>
+      <p class="sub">Collecting naira, confirming payments and sending money to local banks is Paga's job. AjoLabs adds the circle rules, the countdown, trust tiers and the record.</p>
+      <div class="chaingrid">
+        <div class="chcard gb spot"><div class="chh"><span class="chn"><img class="paga" src="/paga-logo.svg" alt="Paga"></span><span class="ptag g">Money layer</span></div><div class="chtok">Collect and pay out</div><p>Collects every payment, confirms it with a webhook and sends payouts to bank accounts.</p></div>
+        <div class="chcard gb spot"><div class="chh"><span class="chn"><svg class="cl" aria-hidden="true"><use href="#mark"/></svg><b>AjoLabs</b></span><span class="ptag">Rules layer</span></div><div class="chtok">Circles and trust</div><p>Keeps the circle rules, the countdown, deposits, holdback, settlement and receipts.</p></div>
+      </div>
+    </section>
+
+    <section class="block" id="scale">
+      <div class="eyebrow" style="margin-bottom:18px">Roadmap</div>
+      <h2>How it scales</h2>
+      <p class="sub">Anyone with an account can start a circle. Every circle has its own rules and record, so thousands can run side by side.</p>
+      <div class="step"><h3>Today</h3><ul><li>Private, invite-only circles of 3 to 10 people</li><li>Payments in naira through Paga</li><li>Starts only when every seat is filled</li><li>Automatic payout into your portfolio</li><li>Transfer to your bank in one tap</li><li>Deposit and holdback protect every circle</li></ul></div>
+      <div class="step next"><h3>Next</h3><ul><li>Larger circles and flexible schedules</li><li>Vouching, so members can back each other</li><li>Standing orders so payments run by themselves</li><li>Verified bank names before every transfer</li></ul></div>
+      <div class="step later"><h3>Later</h3><ul><li>Public circles people can find and join</li><li>Other currencies and countries</li><li>Rewards for finished circles</li><li>Mobile app and easy invite sharing</li></ul></div>
+    </section>
+
+    <section class="block" id="token">
+      <div class="eyebrow" style="margin-bottom:18px">Rewards plan</div>
+      <h2>Rewards for finishing, not for farming</h2>
+      <p class="sub">Planned for later. Until then there is no token and nothing to buy.</p>
+      <div class="tokenplan gb spot">
+        <div class="phases">
+          <div class="phase"><span class="pn">1</span><h3>Points now</h3><p>Points for on-time payments and finished circles. No price, nothing to speculate on.</p></div>
+          <div class="phase"><span class="pn">2</span><h3>Fee rebates</h3><p>Rewards are a rebate of the fees a circle paid, so a circle never earns more than it cost.</p></div>
+          <div class="phase"><span class="pn">3</span><h3>Perks</h3><p>Lower fees and lower holdback for members with a long clean record.</p></div>
+        </div>
+        <div class="safe">
+          <span><svg class="i" aria-hidden="true"><use href="#check"/></svg>Savings and deposits stay in naira</span>
+          <span><svg class="i" aria-hidden="true"><use href="#check"/></svg>Only completed circles count</span>
+          <span><svg class="i" aria-hidden="true"><use href="#check"/></svg>Caps per member and per circle</span>
+          <span><svg class="i" aria-hidden="true"><use href="#check"/></svg>Legal review before launch</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brandlink" href="#hero"><svg class="logo sm" aria-hidden="true"><use href="#mark"/></svg><span>AjoLabs</span></a>
+    <p class="tag">Savings circles in naira.</p>
+    <div class="builton"><img class="paga" src="/paga-logo.svg" alt="Paga"><b>Everything on Paga</b></div>
+    <div class="socials"><a href="/how-it-works.html">Full rules</a><button class="pill sm" data-open="portfolio">Open app</button></div>
+    <p class="fine">Hackathon prototype on Paga Engine. Test money only. The name AjoLabs is a placeholder.</p>
+  </footer>
+</div>
+
+<!-- ================= APP ================= -->
+<div class="app" id="app" role="dialog" aria-modal="true" aria-label="AjoLabs app" aria-hidden="true">
+  <div class="apphead">
+    <a class="brandlink" href="#" id="appLogo"><svg class="logo sm" aria-hidden="true"><use href="#mark"/></svg><span>AjoLabs</span></a>
+    <div class="segc navseg" id="navSeg"></div>
+    <div class="r">
+      <button class="pill sm conn on" id="walletPill">Account</button>
+      <button class="menu" id="appMenuBtn" aria-label="Menu" aria-expanded="false" aria-controls="appMenu"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M5 10h18M5 18h18" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <button class="xbtn" id="closeApp" aria-label="Close app"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></button>
     </div>
-    <div>
-      ${orbit(c)}
-      <div class="card" style="margin-top:22px"><table><tr><td>Pot</td><td>${naira(c.pot)}</td></tr><tr><td>Service fee (1%)</td><td>${naira(c.fee)}</td></tr>${rows}<tr><td>Default pool</td><td>${naira(c.pool)}</td></tr></table></div>
-      <div class="card" style="margin-top:16px"><div class="eyebrow" style="margin:0 0 6px">Activity</div><ul class="led">${led}</ul></div>
+  </div>
+  <nav class="appmenu" id="appMenu" aria-label="App pages">
+    <button data-page="portfolio">Portfolio</button>
+    <button data-page="circle">Circle</button>
+    <button data-page="create">Create a circle</button>
+    <button data-page="join">Join a circle</button>
+    <button id="backSite">Back to site</button>
+    <button id="signOut">Sign out</button>
+  </nav>
+
+  <div class="appmain" id="appmain">
+    <section class="page on" id="p-portfolio" aria-label="Portfolio">
+      <h2>Portfolio</h2>
+      <p class="alede">Your circles, your balance and your receipts.</p>
+      <div class="col1">
+        <div class="pcard gb spot"><div class="pbody">
+          <div class="row"><span class="ptitle">Your balance</span><span class="ptag g"><svg aria-hidden="true"><use href="#lock"/></svg>Payouts land here</span></div>
+          <div class="plinks"><button id="refreshBtn" aria-label="Refresh"><svg aria-hidden="true"><use href="#refresh"/></svg></button></div>
+          <div class="bignum" id="pfBal">₦0</div>
+          <p class="pmuted" id="pfNote">When a payout reaches you, it shows here. Then you can send it to your bank.</p>
+          <button class="pill block" id="pfWithdraw"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Transfer to bank</span></button>
+          <div class="two">
+            <button class="pill outline" data-page="create"><svg aria-hidden="true"><use href="#plus"/></svg>Start a circle</button>
+            <button class="pill outline" data-page="join"><svg aria-hidden="true"><use href="#swap"/></svg>Join</button>
+          </div>
+        </div></div>
+        <div class="pcard">
+          <div class="ph"><div><h4>Your circles</h4><p>Saving with people you trust</p></div><span class="ptag g"><svg aria-hidden="true"><use href="#lock"/></svg>Private</span></div>
+          <div class="pb" id="circlesBody"></div>
+        </div>
+      </div>
+      <div class="col2">
+        <div class="pcard gb spot"><div class="pbody">
+          <div class="ptitle">Next payout</div>
+          <div class="bignum" id="pfNext" style="font-size:56px;margin-top:22px">₦0</div>
+          <p class="pmuted" id="pfNextNote" style="margin-bottom:0">Paid to your balance once everyone has paid.</p>
+        </div></div>
+        <div class="pcard">
+          <div class="ph"><div><h4>Notifications</h4><p>Payments and payouts</p></div></div>
+          <div class="pb" id="noteBody"></div>
+        </div>
+        <div class="pcard">
+          <div class="ph"><div><h4>Receipts</h4><p>Every payment and transfer</p></div></div>
+          <div class="pb" id="rcBody"></div>
+        </div>
+        <div class="pcard">
+          <div class="ph"><div><h4>Record</h4><p>Your history</p></div></div>
+          <div class="pb"><ul style="padding:0"><li class="li"><span>Circles finished</span><b id="recFin" style="font-weight:500">0</b></li><li class="li"><span>Defaults</span><b id="recDef" style="font-weight:500">0</b></li><li class="li"><span>Your holdback</span><b id="recHb" style="font-weight:500">10%</b></li></ul><p id="recNote" style="margin-top:10px">A record lowers your holdback: 10% for new members, 5% after one finished circle, 2% after three.</p></div>
+        </div>
+        <div class="pcard">
+          <div class="ph"><div><h4>Your account</h4><p>Details used for payments</p></div></div>
+          <div class="pb" id="acctBody"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="p-circle" aria-label="Circle">
+      <div class="row"><h2 id="cTitle">Circle</h2><span class="ptag" id="cStatus">Empty</span></div>
+      <p class="alede" id="cLede"></p>
+      <div class="circlegrid">
+        <div class="vizcol">
+          <div class="vizwrap"><canvas id="appCanvas" role="img" aria-label="Circle diagram: members around the pot. Details are listed in the tabs."></canvas></div>
+          <div class="legend"><span><i class="a"></i>Paid</span><span><i class="b"></i>Waiting</span><span><i class="c"></i>Receives</span><span><i class="d"></i>Late</span></div>
+        </div>
+        <div class="infocol">
+          <div class="timer" id="cTimer"></div>
+          <div class="segc sm" id="cTabs"></div>
+          <div class="panel" id="cPanel"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="p-create" aria-label="Create a circle">
+      <h2>Start a circle</h2>
+      <p class="alede">Set the rules once. Everyone sees the same rules before they join.</p>
+      <div class="pcard"><div class="pb"><div class="formgrid">
+        <div class="fcol">
+          <div class="private"><svg aria-hidden="true"><use href="#lock"/></svg><span>Private circle. Only people with your invite link can join.</span></div>
+          <label for="cName">Circle name</label>
+          <input id="cName" value="Oron Traders" maxlength="28">
+          <label for="cAmt">Each person pays per round (₦)</label>
+          <input id="cAmt" type="number" min="100" value="5000" inputmode="numeric">
+          <div class="lbl" id="sizeLbl">Number of members</div>
+          <div class="segc sm" id="sizeSeg" aria-labelledby="sizeLbl"></div>
+          <div class="lbl" id="cycLbl">How often</div>
+          <div class="segc sm" id="cycSeg" aria-labelledby="cycLbl"></div>
+        </div>
+        <div class="fcol">
+          <div class="summary" id="sum"></div>
+          <button class="pill block abtn" id="createBtn">Create circle</button>
+          <p class="note">You pay a deposit equal to one payment before round 1 starts. It comes back at the end.</p>
+        </div>
+      </div></div></div>
+    </section>
+
+    <section class="page" id="p-join" aria-label="Join a circle">
+      <h2 id="jTitle">Join a circle</h2>
+      <p class="alede" id="jLede">Paste the invite link or code someone sent you.</p>
+      <div class="pcard"><div class="pb">
+        <div id="jFind"><label for="jCode" style="margin-top:0">Invite link or code</label><input id="jCode" placeholder="e.g. 3fa91c2b"><button class="pill block abtn" id="jLook">Look up circle</button></div>
+        <div id="jCard" style="display:none"></div>
+      </div></div>
+    </section>
+
+    <div class="legal">
+      AjoLabs is a hackathon prototype on Paga Engine. Test money only. The name AjoLabs is a placeholder.
+      <div class="lk"><a href="/how-it-works.html">Full rules</a></div>
     </div>
-  </div>`;
-  const on = (id, fn) => { const el = $(id); if (el) el.onclick = async () => { try { el.disabled = true; await fn(); } catch (e) { $('#err').textContent = e.message; el.disabled = false; } }; };
-  const others = f => c.members.filter(m => m.id !== me() && f(m));
-  const pays = async (list, kind) => { for (const m of list) { const r = await api(`/api/circles/${cid}/${kind}/${m.id}`, {}); await api('/api/dev/simulate-pay', { reference: r.reference }); } load(); };
-  on('#cp', async () => { try { await navigator.clipboard.writeText(link); $('#cp').textContent = 'Copied'; } catch { $('#lnk').select(); } $('#cp').disabled = false; });
-  on('#dep', () => payFlow(c, 'deposit')); on('#pay', () => payFlow(c, 'pay'));
-  on('#settle', async () => { await api(`/api/circles/${cid}/settle`, {}); load(); });
-  on('#ddep', () => pays(others(m => !m.deposit), 'deposit'));
-  on('#dpay', () => pays(others(m => !m.paid), 'pay'));
-  on('#dpay1', () => { const l = others(m => !m.paid); l.pop(); return pays(l, 'pay'); });
-  on('#dskip', async () => { await api('/api/dev/skip-time', { id: cid }); load(); });
-  on('#dfill', async () => { const names = ['Tunde', 'Amina', 'Nne', 'Yusuf', 'Ife', 'Bola', 'Chidi', 'Zainab', 'Kemi']; let i = 0;
-    for (let k = c.members.length; k < c.maxMembers; k++) await api(`/api/circles/${cid}/join`, { name: names[i++], phone: '0800000000' + i, bankCode: '058', accountNumber: '01234567' + (10 + i) }); load(); });
-}
+  </div>
 
-async function payFlow(c, kind) {
-  const r = await api(`/api/circles/${cid}/${kind}/${me()}`, {});
-  if (mode !== 'mock') { location.href = r.checkoutUrl; return; }
-  const m = document.createElement('div'); m.className = 'modal';
-  m.innerHTML = `<div class="card"><div class="eyebrow">Paga checkout (demo)</div><h1 style="font-size:28px">${kind === 'deposit' ? 'Pay deposit ' : 'Pay '}${naira(c.amount)}</h1>
-    <p class="sub" style="font-size:14px">In live mode this opens Paga. Here we fake the payment so you can see the whole flow.</p>
-    <button class="btn" id="ok">Simulate successful payment</button><button class="btn ghost" id="no">Cancel</button></div>`;
-  document.body.appendChild(m);
-  $('#no').onclick = () => { m.remove(); load(); };
-  $('#ok').onclick = async () => { await api('/api/dev/simulate-pay', { reference: r.reference }); m.remove(); load(); };
-}
+</div>
+<div class="sheet-back" id="sheet"><div class="sheet" role="dialog" aria-modal="true" id="sheetIn"></div></div>
+<div class="toast" id="toast" role="status"></div>
 
-async function load() {
-  try {
-    const c = await api('/api/circles/' + cid);
-    const isMember = c.members.some(m => m.id === me());
-    if (!isMember && c.status === 'filling') { if (!$('#pname')) viewJoin(c); return; }
-    if ($('.modal')) return; viewCircle(c);
-  } catch (e) { $('#app').innerHTML = `<div class="card" style="max-width:420px;margin:40px auto"><h1 style="font-size:28px">Circle not found</h1><p class="sub">${esc(e.message)}</p><button class="btn" onclick="location.href=location.pathname">Start a circle</button></div>`; clearInterval(timer); }
-}
-function route() {
-  clearInterval(timer); clearInterval(tick);
-  if (!cid) return viewCreate();
-  load(); timer = setInterval(() => { if (!document.activeElement || !['INPUT', 'SELECT'].includes(document.activeElement.tagName)) load(); }, 3000);
-  tick = setInterval(() => { const el = $('#cd'); if (el && deadline) el.textContent = fmtCd(deadline - (Date.now() + skew)); }, 1000);
-}
-fetch('/health').then(r => r.json()).then(h => { mode = h.mode; $('#mode').textContent = mode === 'mock' ? 'Demo mode' : 'Paga test mode'; }).catch(() => {}).finally(route);
-window.onpopstate = () => { cid = new URLSearchParams(location.search).get('c'); route(); };
-</script>
+<script src="/ui.js"></script>
+<script src="/app.js"></script>
 </body>
 </html>
