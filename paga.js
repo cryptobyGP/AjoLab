@@ -86,7 +86,14 @@ async function banks() {
   if (!bankCache || Date.now() - bankAt > 864e5) {
     const reference = 'banks-' + Date.now();
     const d = await business('/getBanks', { referenceNumber: reference }, [reference]);
-    bankCache = (d.banks || []).map(b => ({ id: b.uuid, name: b.name })).sort((a, b) => a.name.localeCompare(b.name)); bankAt = Date.now();
+    const all = (d.banks || []).map(b => ({ id: b.uuid, name: b.name }));
+    // Show only the popular ones (microfinance and digital banks first), one entry per bank, instead of Paga's very long list.
+    const wanted = [/paycom|opay/i, /kuda/i, /moniepoint/i, /palmpay/i, /fairmoney/i, /carbon/i, /sparkle/i, /vfd/i, /rubies|highstreet/i, /^paga$/i, /providus/i, /optimus/i, /pocketapp/i, /mint/i,
+      /access bank(?!.*diamond)/i, /guaranty trust|^gtb/i, /zenith/i, /first bank/i, /united bank for africa|^uba/i, /wema/i, /sterling/i, /fidelity/i, /first city|fcmb/i, /polaris/i, /stanbic/i, /union bank/i];
+    const picked = [], seen = new Set();
+    for (const re of wanted) { const b = all.find(x => re.test(x.name) && !/test/i.test(x.name)); if (b && !seen.has(b.id)) { seen.add(b.id); picked.push(/paycom/i.test(b.name) ? { ...b, name: 'OPay (Paycom)' } : b); } }
+    const dedup = []; const names = new Set(); for (const b of all.sort((a, c) => a.name.localeCompare(c.name))) { const k = b.name.toLowerCase(); if (!names.has(k)) { names.add(k); dedup.push(b); } }
+    bankCache = (picked.length >= 8 ? picked : dedup).slice(0, 24); bankAt = Date.now();
   }
   return bankCache;
 }
