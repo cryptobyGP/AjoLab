@@ -15,10 +15,10 @@ async function who(req) {
   return circle.upsertUser(v.uid, v.email).uid;
 }
 
-http.createServer(async (req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'); const p = url.pathname; const m = req.method;
   try {
-    if (m === 'GET' && p === '/health') return send(res, 200, { ok: true, mode: paga.MODE });
+    if (m === 'GET' && p === '/health') return send(res, 200, { ok: true, mode: paga.MODE, storage: require('./store').REMOTE ? 'upstash' : 'file' });
     if (m === 'GET' && p === '/api/config') return send(res, 200, { ...auth.config(), mode: paga.MODE, emailReceipts: notify.enabled });
 
     if (m === 'POST' && p === '/webhooks/paga') {                       // Paga tells us a payment landed
@@ -82,4 +82,5 @@ http.createServer(async (req, res) => {
       return send(res, 200, fs.readFileSync(file), TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream');
     send(res, 404, { error: 'not found' });
   } catch (e) { send(res, e.code === 401 ? 401 : 400, { error: e.message }); }
-}).listen(PORT, () => console.log(`AjoLabs on :${PORT} (Paga mode: ${paga.MODE})`));
+});
+require('./store').init().then(() => server.listen(PORT, () => console.log(`AjoLabs on :${PORT} (Paga mode: ${paga.MODE})`))).catch(e => { console.error('Could not load data:', e.message); process.exit(1); });
