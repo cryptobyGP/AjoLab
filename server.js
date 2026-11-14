@@ -8,10 +8,10 @@ const send = (res, code, body, type = 'application/json') => { res.writeHead(cod
 const readBody = req => new Promise(r => { let b = ''; req.on('data', d => { b += d; if (b.length > 1e6) req.destroy(); }); req.on('end', () => r(b)); });
 const json = async req => JSON.parse((await readBody(req)) || '{}');
 
-function who(req) {
+async function who(req) {
   const h = req.headers.authorization || '';
   if (!h.startsWith('Bearer ')) throw Object.assign(new Error('Please sign in'), { code: 401 });
-  let v; try { v = auth.verify(h.slice(7), req.headers['x-user-email']); } catch (e) { throw Object.assign(e, { code: 401 }); }
+  let v; try { v = await auth.verify(h.slice(7), req.headers['x-user-email']); } catch (e) { throw Object.assign(e, { code: 401 }); }
   return circle.upsertUser(v.uid, v.email).uid;
 }
 
@@ -34,7 +34,7 @@ http.createServer(async (req, res) => {
     if ((mt = p.match(/^\/api\/preview\/(\w+)$/)) && m === 'GET') return send(res, 200, circle.preview(mt[1]));
 
     if (p.startsWith('/api/')) {
-      const uid = who(req);
+      const uid = await who(req);
       if (m === 'GET' && p === '/api/me') return send(res, 200, circle.pub(circle.getUser(uid)));
       if (m === 'POST' && p === '/api/me') return send(res, 200, circle.profile(uid, await json(req)));
       if (m === 'POST' && p === '/api/me/read') { const u = circle.getUser(uid); u.notes.forEach(n => (n.read = true)); require('./store').save(); return send(res, 200, circle.pub(u)); }
