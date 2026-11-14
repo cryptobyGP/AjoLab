@@ -541,3 +541,9 @@ body>.sheet-back .sheet{max-width:480px;margin:0 auto}
 body>.toast{position:fixed;z-index:80;max-width:480px;margin:0 auto}
 .topr .pill{white-space:nowrap;padding:12px 18px;font-size:15px}
 .tile .v{font-size:19px}
+.pg{height:1.05em;width:1.05em;border-radius:4px;vertical-align:-.17em;margin:0 .28em 0 .12em;display:inline-block}
+img.paga{height:26px;width:26px;border-radius:7px;display:block}
+.builton .paga{height:28px;width:28px}
+.wpaga{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:26px;font-size:14px;color:var(--soft)}
+.wpaga .paga{height:22px;width:22px;border-radius:6px}
+.chn .paga{height:30px;width:30px}

@@ -5,6 +5,7 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",
 const BANKS=[["058","GTBank"],["044","Access Bank"],["033","UBA"],["057","Zenith Bank"],["011","First Bank"],["090267","Kuda"],["100004","Opay"],["100033","PalmPay"],["090405","Moniepoint"],["035","Wema Bank"],["232","Sterling Bank"],["070","Fidelity Bank"],["214","FCMB"],["032","Union Bank"],["039","Stanbic IBTC"],["076","Polaris Bank"],["050","Ecobank"],["082","Keystone Bank"]];
 const CYC={7:"weekly",14:"every 2 weeks",30:"monthly"};
 const FEE=0.01;
+const PG='<img class="pg" src="/paga-logo.jpg" alt="">';
 
 /* ---------- toast + sheet ---------- */
 function toast(msg){const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(toast.t); toast.t=setTimeout(()=>t.classList.remove("on"),3600);}
@@ -240,7 +241,7 @@ function bankSheet(then){
 }
 $("#pfWithdraw").onclick=()=>{
   if(!ME.bank) return bankSheet(()=>$("#pfWithdraw").click());
-  sheet('<h2>Transfer to bank</h2><p class="alede">Sent through Paga to '+esc(ME.bank.name)+' ending '+esc(ME.bank.account.slice(-4))+'.</p><div class="card"><div class="row"><span>Available</span><b>'+money(ME.wallet)+'</b></div></div>'+
+  sheet('<h2>Transfer to bank</h2><p class="alede">Sent through '+PG+'Paga to '+esc(ME.bank.name)+' ending '+esc(ME.bank.account.slice(-4))+'.</p><div class="card"><div class="row"><span>Available</span><b>'+money(ME.wallet)+'</b></div></div>'+
     '<label for="wAmt" style="margin-top:0">Amount (₦)</label><input id="wAmt" type="number" inputmode="numeric" value="'+ME.wallet+'" min="100" max="'+ME.wallet+'">'+
     '<div id="wErr2" style="color:var(--bad);font-size:14px;margin-top:10px"></div><button class="pill block abtn" id="wGo">Send to my bank</button><button class="pill outline block abtn" data-close>Cancel</button>',
   ()=>{ $("#wGo").onclick=async()=>{ const b=$("#wGo"); b.disabled=true; b.textContent="Sending...";
@@ -380,7 +381,7 @@ function pay(kind){
   const c=cur,me=c.members.find(m=>m.you);
   api("/api/circles/"+c.id+"/"+(kind==="deposit"?"deposit":"pay")+"/"+me.id,{body:{}}).then(r=>{
     if(MOCK){
-      sheet('<h2>Paga checkout</h2><p class="alede">Test mode. No real money moves.</p><div class="card"><div class="row"><span>'+(kind==="deposit"?"Deposit":"Round "+c.round+" payment")+'</span><b>'+money(c.amount)+'</b></div><div class="row" style="margin-top:10px"><span>Pay to</span><b>'+esc(c.name)+'</b></div><div class="row" style="margin-top:10px"><span>Through</span><b>Paga</b></div></div><button class="pill block abtn" id="pgOk">Pay '+money(c.amount)+'</button><button class="pill outline block abtn" data-close>Cancel</button>',
+      sheet('<h2>'+PG+'Paga checkout</h2><p class="alede">Test mode. No real money moves.</p><div class="card"><div class="row"><span>'+(kind==="deposit"?"Deposit":"Round "+c.round+" payment")+'</span><b>'+money(c.amount)+'</b></div><div class="row" style="margin-top:10px"><span>Pay to</span><b>'+esc(c.name)+'</b></div><div class="row" style="margin-top:10px"><span>Through</span><b>'+PG+'Paga</b></div></div><button class="pill block abtn" id="pgOk">Pay '+money(c.amount)+'</button><button class="pill outline block abtn" data-close>Cancel</button>',
         ()=>{ $("#pgOk").onclick=()=>{ closeSheet(); act(()=>api("/api/dev/simulate-pay",{body:{reference:r.reference}}),"Payment received. Receipt saved."); }; });
     } else if(r.checkoutUrl){ window.open(r.checkoutUrl,"_blank"); toast("Complete the payment in the Paga page. This screen updates when it lands."); }
     else toast("Payment requested. Waiting for Paga to confirm.");
