@@ -39,7 +39,7 @@ async function business(path, body, hashFields) {
   return data;
 }
 
-let regWin = null; const inflight = new Map();
+let regWin = null, regTry = 0, coolUntil = 0; const inflight = new Map();
 /* ---------- virtual account: each user's own Paga account number ---------- */
 async function createAccount({ uid, name, email, phone }) {
   if (MODE === 'mock') { let h = 0; for (const ch of uid) h = (h * 31 + ch.charCodeAt(0)) % 100000000; return { number: '99' + String(h).padStart(8, '0'), bank: 'Paga (test)', name }; }
@@ -56,13 +56,17 @@ async function createAccountLive({ uid, name, email, phone }) {
   // Paga's docs give three different hash recipes for this call, so try each (and both signing styles) until one works.
   const recipes = [[reference, accountReference, '', '', '', callbackUrl], [reference, phone, name, accountReference, '', '', '', callbackUrl], [reference, accountReference, '', '', callbackUrl]];
   const sig = (f, m) => { const s = clean(f); return m === 'hmac' ? crypto.createHmac('sha512', HASH_KEY).update(s).digest('hex') : crypto.createHash('sha512').update(s + HASH_KEY).digest('hex'); };
-  const order = [regWin, ...recipes.flatMap((_, i) => ['sha', 'hmac'].map(m => [i, m]))].filter(Boolean);
+  // One request per attempt (Paga rate-limits). Each failed attempt moves on to the next hash recipe, so repeated taps try them all.
+  if (Date.now() < coolUntil) throw new Error('Paga is busy right now. Wait a minute and try again.');
+  const combos = recipes.flatMap((_, i) => ['sha', 'hmac'].map(m => [i, m]));
+  const w = regWin || combos[regTry % combos.length];
   let d, lastErr;
-  for (const w of order) {
-    try { d = await collect('/registerPersistentPaymentAccount', body, null, sig(recipes[w[0]], w[1])); if (String(d.statusCode) === '0') { regWin = w; console.log('Paga hash recipe that works:', w); break; } lastErr = new Error('Paga said: ' + (d.statusMessage || JSON.stringify(d).slice(0, 160))); }
-    catch (e) { lastErr = e; if (e.rateLimited) break; }
-    await new Promise(r => setTimeout(r, 2000));
-  }
+  try {
+    d = await collect('/registerPersistentPaymentAccount', body, null, sig(recipes[w[0]], w[1]));
+    if (String(d.statusCode) === '0') { regWin = w; console.log('Paga hash recipe that works:', w); }
+    else { lastErr = new Error('Paga said: ' + (d.statusMessage || JSON.stringify(d).slice(0, 160))); }
+  } catch (e) { lastErr = e; if (e.rateLimited) coolUntil = Date.now() + 90000; }
+  if (!regWin) regTry++;
   if (!d || String(d.statusCode) !== '0') throw lastErr || new Error('Paga could not create your account');
   if (String(d.statusCode) !== '0' || !d.accountNumber) throw new Error('Paga could not create your account: ' + (d.statusMessage || 'unknown error'));
   return { number: d.accountNumber, bank: 'Paga', name, ref: accountReference };
