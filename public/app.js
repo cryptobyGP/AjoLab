@@ -388,6 +388,9 @@ function bindPay(){
   if(B("skipBtn")) B("skipBtn").onclick=()=>act(()=>api("/api/dev/skip-time",{body:{id:c.id}}),"Clock moved past the deadline and grace");
   if(B("settleBtn")) B("settleBtn").onclick=()=>act(()=>api("/api/circles/"+c.id+"/settle",{body:{}}),"Settlement ran. Default mark added.");
 }
+function wireDemo(){
+  const d=$("#fDemo"); if(d) d.onclick=async()=>{ try{ ME=await api("/api/dev/simulate-fund",{body:{amount:+$("#fAmt").value}}); seenSync(); closeSheet(); renderPortfolio(); if(cur&&appEl.classList.contains("on")&&page==="circle")renderPanel(); toast("Balance funded. Receipt saved."); }catch(e){ toast(e.message); } };
+}
 async function checkout(){
   const b=$("#cPay"); b.disabled=true; b.textContent="Opening Paga...";
   try{ const r=await api("/api/checkout",{body:{amount:+$("#cAmt").value}}); if(r.checkoutUrl) location.href=r.checkoutUrl; else { toast("Paga sent no checkout link yet"); b.disabled=false; b.textContent="Pay with Paga Checkout"; } }
@@ -397,16 +400,16 @@ async function fundSheet(need){
   let acc,accErr;
   try{ acc=(await api("/api/account",{body:{}})).account; }catch(e){ accErr=e.message; acc=null; }
   const chk='<label for="cAmt">Amount (₦)</label><input id="cAmt" type="number" inputmode="numeric" value="'+(need||5000)+'"><button class="pill block abtn" id="cPay">Pay with '+PG+'Paga Checkout</button>';
-  if(!acc){ return sheet('<h2>Fund your balance</h2><p class="alede">Your Paga account number is not ready ('+esc(accErr)+'). You can still fund with checkout.</p>'+chk+'<button class="pill outline block abtn" data-close>Close</button>',()=>{ $("#cPay").onclick=checkout; }); }
+  if(!acc){ return sheet('<h2>Fund your balance</h2><p class="alede">Your Paga account number is not ready ('+esc(accErr)+'). You can still fund with checkout.</p>'+chk+(MOCK||CONFIG.topup?'<label for="fAmt">Test money (sandbox only, no real naira)</label><input id="fAmt" type="number" inputmode="numeric" value="'+(need||5000)+'"><button class="pill outline block abtn" id="fDemo">Add test money</button>':"")+'<button class="pill outline block abtn" data-close>Close</button>',()=>{ $("#cPay").onclick=checkout; wireDemo(); }); }
   sheet('<h2>Fund your balance</h2><p class="alede">'+(need?"You need "+money(need)+" more. ":"")+'Send naira from any bank app to your own '+PG+'Paga account below. It shows in your balance once Paga confirms it.</p>'+
     '<div class="card"><div class="row"><span>Account number</span><b id="fAcc" style="font-size:22px;letter-spacing:1px">'+esc(acc.number)+'</b></div><div class="row" style="margin-top:10px"><span>Bank</span><b>'+esc(acc.bank)+'</b></div><div class="row" style="margin-top:10px"><span>Account name</span><b>'+esc(acc.name)+'</b></div></div>'+
     '<button class="pill block abtn" id="fCopy">Copy account number</button>'+'<p class="alede" style="margin-top:14px">Or pay by card or transfer on Paga Checkout:</p>'+chk+
-    (MOCK?'<label for="fAmt">Demo: pretend a transfer arrived (₦)</label><input id="fAmt" type="number" inputmode="numeric" value="'+(need||5000)+'"><button class="pill outline block abtn" id="fDemo">Add to my balance</button>':"")+
+    (MOCK||CONFIG.topup?'<label for="fAmt">Test money (sandbox only, no real naira)</label><input id="fAmt" type="number" inputmode="numeric" value="'+(need||5000)+'"><button class="pill outline block abtn" id="fDemo">Add test money</button>':"")+
     '<button class="pill outline block abtn" data-close>Close</button>',
   ()=>{
     $("#cPay").onclick=checkout;
     $("#fCopy").onclick=()=>{ (navigator.clipboard?navigator.clipboard.writeText(acc.number):Promise.reject()).then(()=>toast("Account number copied"),()=>toast("Long-press the number to copy")); };
-    const d=$("#fDemo"); if(d) d.onclick=async()=>{ try{ ME=await api("/api/dev/simulate-fund",{body:{amount:+$("#fAmt").value}}); seenSync(); closeSheet(); renderPortfolio(); if(cur&&appEl.classList.contains("on")&&page==="circle")renderPanel(); toast("Balance funded. Receipt saved."); }catch(e){ toast(e.message); } };
+    wireDemo();
   });
 }
 $("#pfFund").onclick=()=>fundSheet();

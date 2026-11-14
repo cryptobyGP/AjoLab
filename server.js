@@ -19,7 +19,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'); const p = url.pathname; const m = req.method;
   try {
     if (m === 'GET' && p === '/health') return send(res, 200, { ok: true, mode: paga.MODE, storage: require('./store').REMOTE ? 'upstash' : 'file' });
-    if (m === 'GET' && p === '/api/config') return send(res, 200, { ...auth.config(), mode: paga.MODE, emailReceipts: notify.enabled });
+    if (m === 'GET' && p === '/api/config') return send(res, 200, { ...auth.config(), mode: paga.MODE, topup: paga.MODE === 'mock' || process.env.TEST_TOPUP === '1', emailReceipts: notify.enabled });
 
     if (m === 'POST' && p === '/webhooks/paga') {                       // Paga tells us a payment landed
       const raw = await readBody(req);
@@ -59,7 +59,7 @@ const server = http.createServer(async (req, res) => {
       if (m === 'POST' && p === '/api/me/read') { const u = circle.getUser(uid); u.notes.forEach(n => (n.read = true)); require('./store').save(); return send(res, 200, circle.pub(u)); }
       if (m === 'POST' && p === '/api/checkout') return send(res, 200, await circle.startCheckout(uid, (await json(req)).amount));
       if (m === 'POST' && p === '/api/account') return send(res, 200, await circle.account(uid));
-      if (paga.MODE === 'mock' && m === 'POST' && p === '/api/dev/simulate-fund') return send(res, 200, circle.fund(uid, (await json(req)).amount));
+      if ((paga.MODE === 'mock' || process.env.TEST_TOPUP === '1') && m === 'POST' && p === '/api/dev/simulate-fund') return send(res, 200, circle.fund(uid, (await json(req)).amount));
       if (m === 'POST' && p === '/api/withdraw') return send(res, 200, await circle.withdraw(uid, (await json(req)).amount));
       if (m === 'GET' && p === '/api/circles') return send(res, 200, circle.mine(uid));
       if (m === 'POST' && p === '/api/circles') return send(res, 201, circle.status(circle.createCircle(await json(req), uid).id, uid));
