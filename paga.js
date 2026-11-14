@@ -25,10 +25,10 @@ function sign(fields) {
 const sha = s => crypto.createHash('sha512').update(s).digest('hex');
 const safeEq = (a, b) => typeof a === 'string' && a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
-async function collect(path, body, hashFields) {
-  const res = await fetch(COLLECT + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + Buffer.from(PUBLIC_KEY + ':' + SECRET_KEY).toString('base64'), hash: sign(hashFields) }, body: JSON.stringify(body) });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`Paga ${path} failed (${res.status}) ${data.statusMessage || data.message || ''}`.trim());
+async function collect(path, body, hashFields, hashOverride) {
+  const res = await fetch(COLLECT + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + Buffer.from(PUBLIC_KEY + ':' + SECRET_KEY).toString('base64'), hash: hashOverride || sign(hashFields) }, body: JSON.stringify(body) });
+  const text = await res.text(); let data = {}; try { data = JSON.parse(text); } catch {}
+  if (!res.ok) { console.error('Paga', path, res.status, text.slice(0, 400)); throw new Error(`Paga ${path} failed (${res.status}) ${data.statusMessage || data.message || text.slice(0, 160)}`.trim()); }
   return data;
 }
 async function business(path, body, hashFields) {
@@ -38,6 +38,7 @@ async function business(path, body, hashFields) {
   return data;
 }
 
+let regWin = null;
 /* ---------- virtual account: each user's own Paga account number ---------- */
 async function createAccount({ uid, name, email, phone }) {
   if (MODE === 'mock') { let h = 0; for (const ch of uid) h = (h * 31 + ch.charCodeAt(0)) % 100000000; return { number: '99' + String(h).padStart(8, '0'), bank: 'Paga (test)', name }; }
@@ -47,7 +48,16 @@ async function createAccount({ uid, name, email, phone }) {
   const callbackUrl = PUBLIC_URL + '/webhooks/paga-account';
   const body = { referenceNumber: reference, accountName: name, firstName, lastName, accountReference, callbackUrl };
   if (phone) body.phoneNumber = phone; else if (email) body.email = email;
-  const d = await collect('/registerPersistentPaymentAccount', body, [reference, accountReference, '', '', '', callbackUrl]);
+  // Paga's docs give three different hash recipes for this call, so try each (and both signing styles) until one works.
+  const recipes = [[reference, accountReference, '', '', '', callbackUrl], [reference, phone, name, accountReference, '', '', '', callbackUrl], [reference, accountReference, '', '', callbackUrl]];
+  const sig = (f, m) => { const s = clean(f); return m === 'hmac' ? crypto.createHmac('sha512', HASH_KEY).update(s).digest('hex') : crypto.createHash('sha512').update(s + HASH_KEY).digest('hex'); };
+  const order = [regWin, ...recipes.flatMap((_, i) => ['sha', 'hmac'].map(m => [i, m]))].filter(Boolean);
+  let d, lastErr;
+  for (const w of order) {
+    try { d = await collect('/registerPersistentPaymentAccount', body, null, sig(recipes[w[0]], w[1])); if (String(d.statusCode) === '0') { regWin = w; console.log('Paga hash recipe that works:', w); break; } lastErr = new Error('Paga said: ' + (d.statusMessage || JSON.stringify(d).slice(0, 160))); }
+    catch (e) { lastErr = e; }
+  }
+  if (!d || String(d.statusCode) !== '0') throw lastErr || new Error('Paga could not create your account');
   if (String(d.statusCode) !== '0' || !d.accountNumber) throw new Error('Paga could not create your account: ' + (d.statusMessage || 'unknown error'));
   return { number: d.accountNumber, bank: 'Paga', name, ref: accountReference };
 }
