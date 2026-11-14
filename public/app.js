@@ -2,7 +2,6 @@
 const appEl=$("#app");
 const DAY=86400000;
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const BANKS=[["058","GTBank"],["044","Access Bank"],["033","UBA"],["057","Zenith Bank"],["011","First Bank"],["090267","Kuda"],["100004","Opay"],["100033","PalmPay"],["090405","Moniepoint"],["035","Wema Bank"],["232","Sterling Bank"],["070","Fidelity Bank"],["214","FCMB"],["032","Union Bank"],["039","Stanbic IBTC"],["076","Polaris Bank"],["050","Ecobank"],["082","Keystone Bank"]];
 const CYC={7:"weekly",14:"every 2 weeks",30:"monthly"};
 const FEE=0.01;
 const PG='<img class="pg" src="/paga-logo.jpg" alt="">';
@@ -229,7 +228,8 @@ function receiptSheet(id){
   sheet('<h2>'+esc(r.title)+'</h2><p class="alede">'+esc(r.summary)+'</p><div class="card">'+rows.map((x,i)=>'<div class="row" style="'+(i?"margin-top:10px":"")+'"><span>'+esc(x[0])+'</span><b style="word-break:break-all;text-align:right">'+esc(x[1])+'</b></div>').join("")+'</div><button class="pill block abtn" data-close>Done</button>');
 }
 
-function bankSheet(then){
+async function bankSheet(then){
+  let BANKS=[]; try{ BANKS=(await api("/api/banks")).map(b=>[b.id,b.name]); }catch(e){ return toast(e.message); }
   sheet('<h2>Bank account</h2><p class="alede">Payouts you send out go to this account through Paga.</p>'+
     '<label for="bBank" style="margin-top:6px">Bank</label><select id="bBank">'+BANKS.map(b=>'<option value="'+b[0]+'"'+(ME.bank&&ME.bank.code===b[0]?" selected":"")+'>'+b[1]+'</option>').join("")+'</select>'+
     '<label for="bAcc">Account number</label><input id="bAcc" inputmode="numeric" maxlength="10" placeholder="10 digits" value="'+(ME.bank?esc(ME.bank.account):"")+'">'+

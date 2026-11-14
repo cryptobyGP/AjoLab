@@ -29,12 +29,27 @@ http.createServer(async (req, res) => {
       return send(res, 200, await circle.markPaid(reference));
     }
 
+    if (m === 'POST' && p === '/webhooks/paga-account') {                // a transfer arrived in a user's Paga account
+      const b = await json(req);
+      if (!paga.verifyAccountCallback(b)) return send(res, 401, { error: 'bad signature' });
+      const u = circle.userByAccount(String(b.accountNumber));
+      if (u && Number(b.statusCode) === 0) circle.fund(u.uid, b.amount, 'fund-' + (b.transactionReference || b.fundingPaymentReference));
+      return send(res, 200, { status: 'SUCCESS' });
+    }
+    if (m === 'POST' && p === '/webhooks/paga-payout') {                 // Paga reports the result of a bank transfer
+      const b = await json(req);
+      if (!paga.verifyPayoutCallback(b, req.headers)) return send(res, 401, { error: 'bad signature' });
+      circle.payoutResult(b.referenceNumber, b.responseCode);
+      return send(res, 200, { status: 'SUCCESS' });
+    }
+
     // public: lets someone see a circle from an invite link before they sign in
     let mt;
     if ((mt = p.match(/^\/api\/preview\/(\w+)$/)) && m === 'GET') return send(res, 200, circle.preview(mt[1]));
 
     if (p.startsWith('/api/')) {
       const uid = await who(req);
+      if (m === 'GET' && p === '/api/banks') return send(res, 200, await paga.banks());
       if (m === 'GET' && p === '/api/me') return send(res, 200, circle.pub(circle.getUser(uid)));
       if (m === 'POST' && p === '/api/me') return send(res, 200, circle.profile(uid, await json(req)));
       if (m === 'POST' && p === '/api/me/read') { const u = circle.getUser(uid); u.notes.forEach(n => (n.read = true)); require('./store').save(); return send(res, 200, circle.pub(u)); }

@@ -41,6 +41,14 @@ function receipt(uid, rc) {
 const pub = u => ({ uid: u.uid, email: u.email, name: u.name, phone: u.phone, bank: u.bank, wallet: u.wallet, finished: u.finished, defaults: u.defaults,
   tier: tierOf(u), account: u.account || null, notes: u.notes, receipts: u.receipts });
 
+// Paga reports the final result of a bank transfer. If it failed, the money goes back to the user's balance.
+function payoutResult(reference, code) {
+  const r = db.refs[reference]; if (!r || !r.withdraw || r.refunded || Number(code) === 0) return;
+  r.refunded = true; const u = getUser(r.uid); u.wallet += r.amount;
+  receipt(r.uid, { title: 'Transfer failed', summary: `Your ${ngn(r.amount)} transfer to the bank did not go through. The money is back in your balance.`, amount: r.amount, reference, status: 'Failed' }); save();
+}
+function userByAccount(number) { return Object.values(db.users).find(u => u.account && u.account.number === number); }
+
 // Each user's own Paga account number. Money sent to it lands in their AjoLabs balance.
 async function account(uid) {
   const u = getUser(uid);
@@ -70,11 +78,11 @@ async function withdraw(uid, amount) {
   if (!(amount >= 100)) throw new Error('Minimum transfer is ₦100');
   if (!u.bank) throw new Error('Add your bank account first');
   if (amount > u.wallet) throw new Error('Not enough in your balance');
-  const reference = 'wd-' + id(5); u.wallet -= amount; save();
+  const reference = 'wd-' + id(5); u.wallet -= amount; db.refs[reference] = { withdraw: true, uid, amount, refunded: false }; save();
   try {
     const r = await paga.payout({ reference, amount, bankCode: u.bank.code, accountNumber: u.bank.account, name: u.name || u.email });
     receipt(uid, { title: 'Transfer to bank', summary: `${ngn(amount)} sent to account ending ${u.bank.account.slice(-4)} through Paga.`, amount, reference, kind: 'withdraw', status: r.status === 'SUCCESS' ? 'Successful' : r.status });
-  } catch (e) { u.wallet += amount; save(); throw new Error('Transfer failed, your money is still in your balance. ' + e.message); }
+  } catch (e) { u.wallet += amount; db.refs[reference].refunded = true; save(); throw new Error('Transfer failed, your money is still in your balance. ' + e.message); }
   save(); return pub(u);
 }
 
@@ -265,4 +273,4 @@ async function devPayOthers(cid, me, exceptId) {
   }
 }
 
-module.exports = { account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
+module.exports = { payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
