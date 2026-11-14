@@ -28,6 +28,7 @@ const safeEq = (a, b) => typeof a === 'string' && a.length === b.length && crypt
 async function collect(path, body, hashFields, hashOverride) {
   const res = await fetch(COLLECT + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + Buffer.from(PUBLIC_KEY + ':' + SECRET_KEY).toString('base64'), hash: hashOverride || sign(hashFields) }, body: JSON.stringify(body) });
   const text = await res.text(); let data = {}; try { data = JSON.parse(text); } catch {}
+  if (res.status === 429) { console.error('Paga rate limit', path); const e = new Error('Paga is busy right now. Wait a minute and try again.'); e.rateLimited = true; throw e; }
   if (!res.ok) { console.error('Paga', path, res.status, text.slice(0, 400)); throw new Error(`Paga ${path} failed (${res.status}) ${data.statusMessage || data.message || text.slice(0, 160)}`.trim()); }
   return data;
 }
@@ -38,10 +39,14 @@ async function business(path, body, hashFields) {
   return data;
 }
 
-let regWin = null;
+let regWin = null; const inflight = new Map();
 /* ---------- virtual account: each user's own Paga account number ---------- */
 async function createAccount({ uid, name, email, phone }) {
   if (MODE === 'mock') { let h = 0; for (const ch of uid) h = (h * 31 + ch.charCodeAt(0)) % 100000000; return { number: '99' + String(h).padStart(8, '0'), bank: 'Paga (test)', name }; }
+  if (inflight.has(uid)) return inflight.get(uid);
+  const run = createAccountLive({ uid, name, email, phone }).finally(() => inflight.delete(uid)); inflight.set(uid, run); return run;
+}
+async function createAccountLive({ uid, name, email, phone }) {
   const accountReference = ('AJO' + sha(uid).slice(0, 20)).toUpperCase();     // 12 to 30 characters, unique per user
   const reference = 'acct-' + sha(uid).slice(0, 16);
   const parts = String(name).trim().split(/\s+/), firstName = parts[0], lastName = parts.slice(1).join(' ') || parts[0];
@@ -55,7 +60,8 @@ async function createAccount({ uid, name, email, phone }) {
   let d, lastErr;
   for (const w of order) {
     try { d = await collect('/registerPersistentPaymentAccount', body, null, sig(recipes[w[0]], w[1])); if (String(d.statusCode) === '0') { regWin = w; console.log('Paga hash recipe that works:', w); break; } lastErr = new Error('Paga said: ' + (d.statusMessage || JSON.stringify(d).slice(0, 160))); }
-    catch (e) { lastErr = e; }
+    catch (e) { lastErr = e; if (e.rateLimited) break; }
+    await new Promise(r => setTimeout(r, 2000));
   }
   if (!d || String(d.statusCode) !== '0') throw lastErr || new Error('Paga could not create your account');
   if (String(d.statusCode) !== '0' || !d.accountNumber) throw new Error('Paga could not create your account: ' + (d.statusMessage || 'unknown error'));
