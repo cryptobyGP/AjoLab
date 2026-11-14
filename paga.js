@@ -58,7 +58,8 @@ async function createAccountLive({ uid, name, email, phone }) {
   const sig = (f, m) => { const s = clean(f); return m === 'hmac' ? crypto.createHmac('sha512', HASH_KEY).update(s).digest('hex') : crypto.createHash('sha512').update(s + HASH_KEY).digest('hex'); };
   // One request per attempt (Paga rate-limits). Each failed attempt moves on to the next hash recipe, so repeated taps try them all.
   if (Date.now() < coolUntil) throw new Error('Paga is busy right now. Wait a minute and try again.');
-  const combos = recipes.flatMap((_, i) => ['sha', 'hmac'].map(m => [i, m]));
+  // Best guess first: the code sample in Paga's docs (recipe 1, plain SHA-512 with the hash key appended).
+  const combos = [[1, 'sha'], [1, 'hmac'], [0, 'sha'], [2, 'sha'], [0, 'hmac'], [2, 'hmac']];
   const w = regWin || combos[regTry % combos.length];
   let d, lastErr;
   try {
