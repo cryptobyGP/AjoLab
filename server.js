@@ -83,8 +83,13 @@ const server = http.createServer(async (req, res) => {
     // static files
     const root = path.join(__dirname, 'public');
     const file = path.join(root, p === '/' ? 'index.html' : p);
-    if (file.startsWith(root) && fs.existsSync(file) && fs.statSync(file).isFile())
+    if (file.startsWith(root) && fs.existsSync(file) && fs.statSync(file).isFile()) {
+      if (file === path.join(root, 'index.html')) {   // put the Privy app id in the page itself so sign-in starts loading immediately
+        const id = JSON.stringify(auth.config().privyAppId || '').replace(/</g, '');
+        return send(res, 200, fs.readFileSync(file, 'utf8').replace('<head>', '<head><script>window.__PRIVY=' + id + '</script>'), 'text/html; charset=utf-8');
+      }
       return send(res, 200, fs.readFileSync(file), TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream');
+    }
     send(res, 404, { error: 'not found' });
   } catch (e) { send(res, e.code === 401 ? 401 : 400, { error: e.message }); }
 });

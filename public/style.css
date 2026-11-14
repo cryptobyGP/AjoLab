@@ -547,3 +547,5 @@ img.paga{height:26px;width:26px;border-radius:7px;display:block}
 .wpaga{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:26px;font-size:14px;color:var(--soft)}
 .wpaga .paga{height:22px;width:22px;border-radius:6px}
 .chn .paga{height:30px;width:30px}
+
+.busy{opacity:.7;pointer-events:none}.busy::after{content:'';display:inline-block;width:12px;height:12px;margin-left:8px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px}@keyframes spin{to{transform:rotate(360deg)}}
