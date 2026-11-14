@@ -39,7 +39,31 @@ function receipt(uid, rc) {
   notify.email(u, rc); return rc;
 }
 const pub = u => ({ uid: u.uid, email: u.email, name: u.name, phone: u.phone, bank: u.bank, wallet: u.wallet, finished: u.finished, defaults: u.defaults,
-  tier: tierOf(u), notes: u.notes, receipts: u.receipts });
+  tier: tierOf(u), account: u.account || null, notes: u.notes, receipts: u.receipts });
+
+// Each user's own Paga account number. Money sent to it lands in their AjoLabs balance.
+async function account(uid) {
+  const u = getUser(uid);
+  if (!u.account) { if (!u.name) throw new Error('Add your name first'); u.account = await paga.createAccount({ uid, name: u.name, email: u.email, phone: u.phone }); save(); }
+  return pub(u);
+}
+// Called when Paga confirms a transfer into a user's account (or by the mock). Safe to call twice.
+function fund(uid, amount, reference) {
+  const u = getUser(uid); amount = Math.floor(Number(amount)); reference = reference || 'fund-' + id(5);
+  if (!(amount > 0)) throw new Error('Enter an amount');
+  if (db.refs[reference]) return pub(u);
+  db.refs[reference] = { fund: true, done: true }; u.wallet += amount;
+  receipt(uid, { title: 'Balance funded', summary: `${ngn(amount)} was added to your balance from your Paga account.`, amount, reference, kind: 'fund' });
+  save(); return pub(u);
+}
+// Pay a deposit or round from the user's balance, no checkout page needed.
+async function payFromBalance(cid, memberId, uid, kind = 'round') {
+  const c = get(cid), u = getUser(uid);
+  if (u.wallet < c.amount) throw new Error(`Your balance is ${ngn(u.wallet)}. Add ${ngn(c.amount - u.wallet)} more to your Paga account first.`);
+  const r = await requestPayment(cid, memberId, kind, true);
+  u.wallet -= c.amount; save();
+  try { return await markPaid(r.reference); } catch (e) { u.wallet += c.amount; save(); throw e; }
+}
 
 async function withdraw(uid, amount) {
   const u = getUser(uid); amount = Math.floor(Number(amount));
@@ -95,7 +119,7 @@ const deadline = c => c.round === 1 ? c.startAt + FUND_WINDOW : c.cycleStartAt +
 const graceEnd = c => deadline(c) + (c.round === 1 ? 0 : GRACE);
 const canSettle = c => c.status === 'active' && now(c) > graceEnd(c) && c.members.some(m => !m.paid);
 
-async function requestPayment(cid, memberId, kind = 'round') {
+async function requestPayment(cid, memberId, kind = 'round', internal = false) {
   const c = get(cid); const m = c.members.find(x => x.id === memberId);
   if (!m) throw new Error('member not found');
   if (kind === 'deposit') {
@@ -107,6 +131,7 @@ async function requestPayment(cid, memberId, kind = 'round') {
   }
   const reference = kind === 'deposit' ? `dep-${c.id}-${m.id}` : `ajo-${c.id}-r${c.round}-${m.id}`;
   db.refs[reference] = { cid, memberId, round: c.round, kind, done: false };
+  if (internal) { save(); return { reference, internal: true }; }
   const r = await paga.requestPayment({ reference, amount: c.amount, payerName: m.name, payerPhone: getUser(m.uid).phone, payerEmail: getUser(m.uid).email });
   save(); return r;
 }
@@ -240,4 +265,4 @@ async function devPayOthers(cid, me, exceptId) {
   }
 }
 
-module.exports = { devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
+module.exports = { account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };

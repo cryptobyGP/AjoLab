@@ -196,7 +196,7 @@ function circleRow(c){
 function renderPortfolio(){
   if(!ME) return;
   $("#pfBal").textContent=money(ME.wallet);
-  $("#pfNote").textContent=ME.wallet>0?"Ready to send to your bank.":"When a payout reaches you, it shows here. Then you can send it to your bank.";
+  $("#pfNote").textContent=ME.wallet>0?"Ready to send to your bank.":"Fund it from your Paga account number. Payouts land here too.";
   $("#pfWithdraw").disabled=!(ME.wallet>=100);
   $("#circlesBody").innerHTML=circles.length?'<ul style="padding:0">'+circles.map(circleRow).join("")+'</ul>':'<p class="empty">No circles yet. Start one or join with an invite link.</p>';
   // next payout: the receiver amount for the next circle where this user has not been paid yet
@@ -377,15 +377,25 @@ function bindPay(){
   if(B("skipBtn")) B("skipBtn").onclick=()=>act(()=>api("/api/dev/skip-time",{body:{id:c.id}}),"Clock moved past the deadline and grace");
   if(B("settleBtn")) B("settleBtn").onclick=()=>act(()=>api("/api/circles/"+c.id+"/settle",{body:{}}),"Settlement ran. Default mark added.");
 }
+async function fundSheet(need){
+  let acc;
+  try{ acc=(await api("/api/account",{body:{}})).account; }catch(e){ return toast(e.message); }
+  sheet('<h2>Fund your balance</h2><p class="alede">'+(need?"You need "+money(need)+" more. ":"")+'Send naira from any bank app to your own '+PG+'Paga account below. It shows in your balance once Paga confirms it.</p>'+
+    '<div class="card"><div class="row"><span>Account number</span><b id="fAcc" style="font-size:22px;letter-spacing:1px">'+esc(acc.number)+'</b></div><div class="row" style="margin-top:10px"><span>Bank</span><b>'+esc(acc.bank)+'</b></div><div class="row" style="margin-top:10px"><span>Account name</span><b>'+esc(acc.name)+'</b></div></div>'+
+    '<button class="pill block abtn" id="fCopy">Copy account number</button>'+
+    (MOCK?'<label for="fAmt">Demo: pretend a transfer arrived (₦)</label><input id="fAmt" type="number" inputmode="numeric" value="'+(need||5000)+'"><button class="pill outline block abtn" id="fDemo">Add to my balance</button>':"")+
+    '<button class="pill outline block abtn" data-close>Close</button>',
+  ()=>{
+    $("#fCopy").onclick=()=>{ (navigator.clipboard?navigator.clipboard.writeText(acc.number):Promise.reject()).then(()=>toast("Account number copied"),()=>toast("Long-press the number to copy")); };
+    const d=$("#fDemo"); if(d) d.onclick=async()=>{ try{ ME=await api("/api/dev/simulate-fund",{body:{amount:+$("#fAmt").value}}); seenSync(); closeSheet(); renderPortfolio(); if(cur&&appEl.classList.contains("on")&&page==="circle")renderPanel(); toast("Balance funded. Receipt saved."); }catch(e){ toast(e.message); } };
+  });
+}
+$("#pfFund").onclick=()=>fundSheet();
 function pay(kind){
-  const c=cur,me=c.members.find(m=>m.you);
-  api("/api/circles/"+c.id+"/"+(kind==="deposit"?"deposit":"pay")+"/"+me.id,{body:{}}).then(r=>{
-    if(MOCK){
-      sheet('<h2>'+PG+'Paga checkout</h2><p class="alede">Test mode. No real money moves.</p><div class="card"><div class="row"><span>'+(kind==="deposit"?"Deposit":"Round "+c.round+" payment")+'</span><b>'+money(c.amount)+'</b></div><div class="row" style="margin-top:10px"><span>Pay to</span><b>'+esc(c.name)+'</b></div><div class="row" style="margin-top:10px"><span>Through</span><b>'+PG+'Paga</b></div></div><button class="pill block abtn" id="pgOk">Pay '+money(c.amount)+'</button><button class="pill outline block abtn" data-close>Cancel</button>',
-        ()=>{ $("#pgOk").onclick=()=>{ closeSheet(); act(()=>api("/api/dev/simulate-pay",{body:{reference:r.reference}}),"Payment received. Receipt saved."); }; });
-    } else if(r.checkoutUrl){ window.open(r.checkoutUrl,"_blank"); toast("Complete the payment in the Paga page. This screen updates when it lands."); }
-    else toast("Payment requested. Waiting for Paga to confirm.");
-  }).catch(e=>toast(e.message));
+  const c=cur,me=c.members.find(m=>m.you),what=kind==="deposit"?"Deposit":"Round "+c.round+" payment";
+  if(ME.wallet<c.amount) return fundSheet(c.amount-ME.wallet);
+  sheet('<h2>Pay from your balance</h2><p class="alede">Your balance pays this. No checkout needed.</p><div class="card"><div class="row"><span>'+what+'</span><b>'+money(c.amount)+'</b></div><div class="row" style="margin-top:10px"><span>To</span><b>'+esc(c.name)+'</b></div><div class="row" style="margin-top:10px"><span>Your balance</span><b>'+money(ME.wallet)+' → '+money(ME.wallet-c.amount)+'</b></div></div><button class="pill block abtn" id="pgOk">Pay '+money(c.amount)+'</button><button class="pill outline block abtn" data-close>Cancel</button>',
+    ()=>{ $("#pgOk").onclick=async()=>{ const b=$("#pgOk"); b.disabled=true; try{ await api("/api/circles/"+c.id+"/"+(kind==="deposit"?"deposit":"pay")+"/"+me.id,{body:{}}); closeSheet(); await refresh(); seenSync(); renderCircle(); toast("Paid. Receipt saved."); }catch(e){ toast(e.message); b.disabled=false; } }; });
 }
 
 /* ---------- boot ---------- */

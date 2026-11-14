@@ -62,4 +62,11 @@ function verifyWebhook(rawBody, headers) {
   return given.length === expected.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
 }
 
-module.exports = { MODE, requestPayment, payout, verifyWebhook };
+// Gives each user their own bank account number at Paga, in their name, to fund their balance.
+// LIVE: placeholder until the Paga persistent-account docs are confirmed.
+async function createAccount({ uid, name, email, phone }) {
+  if (MODE === 'mock') { let h = 0; for (const ch of uid) h = (h * 31 + ch.charCodeAt(0)) % 100000000; return { number: '99' + String(h).padStart(8, '0'), bank: 'Paga (test)', name }; }
+  throw new Error('Paga account creation is not connected yet');
+}
+
+module.exports = { createAccount, MODE, requestPayment, payout, verifyWebhook };

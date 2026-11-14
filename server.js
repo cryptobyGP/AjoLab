@@ -38,6 +38,8 @@ http.createServer(async (req, res) => {
       if (m === 'GET' && p === '/api/me') return send(res, 200, circle.pub(circle.getUser(uid)));
       if (m === 'POST' && p === '/api/me') return send(res, 200, circle.profile(uid, await json(req)));
       if (m === 'POST' && p === '/api/me/read') { const u = circle.getUser(uid); u.notes.forEach(n => (n.read = true)); require('./store').save(); return send(res, 200, circle.pub(u)); }
+      if (m === 'POST' && p === '/api/account') return send(res, 200, await circle.account(uid));
+      if (paga.MODE === 'mock' && m === 'POST' && p === '/api/dev/simulate-fund') return send(res, 200, circle.fund(uid, (await json(req)).amount));
       if (m === 'POST' && p === '/api/withdraw') return send(res, 200, await circle.withdraw(uid, (await json(req)).amount));
       if (m === 'GET' && p === '/api/circles') return send(res, 200, circle.mine(uid));
       if (m === 'POST' && p === '/api/circles') return send(res, 201, circle.status(circle.createCircle(await json(req), uid).id, uid));
@@ -53,8 +55,8 @@ http.createServer(async (req, res) => {
       if ((mt = p.match(/^\/api\/circles\/(\w+)$/)) && m === 'GET') return send(res, 200, circle.status(mt[1], uid));
       if ((mt = p.match(/^\/api\/circles\/(\w+)\/join$/)) && m === 'POST') { circle.joinCircle(mt[1], uid); return send(res, 200, circle.status(mt[1], uid)); }
       if ((mt = p.match(/^\/api\/circles\/(\w+)\/settle$/)) && m === 'POST') { if (!circle.status(mt[1], uid).myId) throw new Error('Only members can settle'); await circle.settle(mt[1]); return send(res, 200, circle.status(mt[1], uid)); }
-      if ((mt = p.match(/^\/api\/circles\/(\w+)\/deposit\/(\w+)$/)) && m === 'POST') { own(mt[1], mt[2]); return send(res, 200, await circle.requestPayment(mt[1], mt[2], 'deposit')); }
-      if ((mt = p.match(/^\/api\/circles\/(\w+)\/pay\/(\w+)$/)) && m === 'POST') { own(mt[1], mt[2]); return send(res, 200, await circle.requestPayment(mt[1], mt[2])); }
+      if ((mt = p.match(/^\/api\/circles\/(\w+)\/deposit\/(\w+)$/)) && m === 'POST') { own(mt[1], mt[2]); await circle.payFromBalance(mt[1], mt[2], uid, 'deposit'); return send(res, 200, circle.status(mt[1], uid)); }
+      if ((mt = p.match(/^\/api\/circles\/(\w+)\/pay\/(\w+)$/)) && m === 'POST') { own(mt[1], mt[2]); await circle.payFromBalance(mt[1], mt[2], uid); return send(res, 200, circle.status(mt[1], uid)); }
       return send(res, 404, { error: 'not found' });
     }
 

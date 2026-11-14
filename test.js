@@ -40,6 +40,15 @@ async function fill() {
   await assert.rejects(() => circle.withdraw('u0', 99999999), /Not enough/);
   assert.equal(circle.getUser('u0').finished, 1);
 
+  // balance funding and pay-from-balance
+  circle.upsertUser('u9', 'n@x.com'); circle.profile('u9', { name: 'Nne2', phone: '0800000999' });
+  const a1 = (await circle.account('u9')).account; assert.equal((await circle.account('u9')).account.number, a1.number); assert.equal(a1.name, 'Nne2');
+  circle.fund('u9', 5000, 'f1'); circle.fund('u9', 5000, 'f1'); assert.equal(circle.getUser('u9').wallet, 5000, 'fund is idempotent');
+  const pc = circle.createCircle({ name: 'P', amount: 5000, maxMembers: 3, cycleDays: 7 }, 'u9'); circle.joinCircle(pc.id, 'u1'); circle.joinCircle(pc.id, 'u2');
+  const pm = circle.status(pc.id, 'u9').myId; await circle.payFromBalance(pc.id, pm, 'u9', 'deposit');
+  assert.equal(circle.getUser('u9').wallet, 0); assert.ok(circle.status(pc.id, 'u9').members[0].deposit);
+  await assert.rejects(() => circle.payFromBalance(pc.id, pm, 'u9', 'deposit'), /balance/);
+
   // 2. Missed payment: settlement covers from holdback, deposit, pool; default mark added
   c = await fill(); const id2 = c.id;
   for (const m of c.members.filter(x => x.name !== 'Tunde')) await pay(c, m);
