@@ -73,6 +73,7 @@ const server = http.createServer(async (req, res) => {
 
       const own = (cid, memberId) => { const s = circle.status(cid, uid); if (s.myId !== memberId) throw new Error('That is not your seat'); };
       if ((mt = p.match(/^\/api\/circles\/(\w+)$/)) && m === 'GET') return send(res, 200, circle.status(mt[1], uid));
+      if ((mt = p.match(/^\/api\/circles\/(\w+)\/autopay$/)) && m === 'POST') return send(res, 200, await circle.setAuto(mt[1], uid, (await json(req)).on));
       if ((mt = p.match(/^\/api\/circles\/(\w+)\/join$/)) && m === 'POST') { circle.joinCircle(mt[1], uid); return send(res, 200, circle.status(mt[1], uid)); }
       if ((mt = p.match(/^\/api\/circles\/(\w+)\/settle$/)) && m === 'POST') { if (!circle.status(mt[1], uid).myId) throw new Error('Only members can settle'); await circle.settle(mt[1]); return send(res, 200, circle.status(mt[1], uid)); }
       if ((mt = p.match(/^\/api\/circles\/(\w+)\/deposit\/(\w+)$/)) && m === 'POST') { own(mt[1], mt[2]); await circle.payFromBalance(mt[1], mt[2], uid, 'deposit'); return send(res, 200, circle.status(mt[1], uid)); }
@@ -93,4 +94,4 @@ const server = http.createServer(async (req, res) => {
     send(res, 404, { error: 'not found' });
   } catch (e) { send(res, e.code === 401 ? 401 : 400, { error: e.message }); }
 });
-require('./store').init().then(() => server.listen(PORT, () => console.log(`AjoLabs on :${PORT} (Paga mode: ${paga.MODE})`))).catch(e => { console.error('Could not load data:', e.message); process.exit(1); });
+require('./store').init().then(() => { setInterval(() => circle.autoTick(), 60000); server.listen(PORT, () => console.log(`AjoLabs on :${PORT} (Paga mode: ${paga.MODE})`)); }).catch(e => { console.error('Could not load data:', e.message); process.exit(1); });

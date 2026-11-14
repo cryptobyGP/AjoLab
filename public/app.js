@@ -355,6 +355,7 @@ function renderPanel(){
         const t=c.members.find(m=>!m.you&&!m.paid&&m.slot!==c.round); if(t&&c.round===1&&n>=4) h+='<button class="pill outline block abtn sm" id="missBtn">Demo: '+esc(t.name)+' will not pay this round</button>';
         h+='<button class="pill outline block abtn sm" id="skipBtn">Demo: skip past the deadline and grace</button>'; }
     }
+    if(me&&(c.status==="deposits"||c.status==="active")) h+='<div class="card" style="margin-top:12px"><div class="row"><span><b>Auto-pay</b><br><span class="muted" style="font-size:13px">'+PG+'Paga pulls from your balance when a payment is due</span></span><button class="pill sm abtn" id="autoBtn" style="'+(me.auto?"":"background:transparent;border:1px solid var(--line);color:inherit")+'">'+(me.auto?"On":"Off")+'</button></div></div>';
     el.innerHTML=h; bindPay();
   } else if(cTab==="members"){
     el.innerHTML='<div class="pcard" style="margin:0"><div class="pb" style="padding:8px 22px"><ul style="padding:0">'+c.members.map(m=>{
@@ -383,6 +384,7 @@ function bindPay(){
   if(B("fillBtn")) B("fillBtn").onclick=()=>act(()=>api("/api/dev/fill",{body:{id:c.id}}),"Sample members joined");
   if(B("depBtn")) B("depBtn").onclick=()=>pay("deposit");
   if(B("payBtn")) B("payBtn").onclick=()=>pay("pay");
+  if(B("autoBtn")) B("autoBtn").onclick=()=>act(async()=>{ const me=c.members.find(m=>m.you); const r=await api("/api/circles/"+c.id+"/autopay",{body:{on:!me.auto}}); try{ME=await api("/api/me");}catch(e){} return r; },"Auto-pay updated");
   if(B("othersBtn")) B("othersBtn").onclick=()=>act(()=>api("/api/dev/pay-others",{body:{id:c.id}}),"Others have paid");
   if(B("missBtn")) B("missBtn").onclick=()=>{ const t=c.members.find(m=>!m.you&&!m.paid&&m.slot!==c.round); act(()=>api("/api/dev/pay-others",{body:{id:c.id,except:t.slot}}),t.name+" has not paid"); };
   if(B("skipBtn")) B("skipBtn").onclick=()=>act(()=>api("/api/dev/skip-time",{body:{id:c.id}}),"Clock moved past the deadline and grace");

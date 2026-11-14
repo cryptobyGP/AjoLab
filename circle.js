@@ -134,6 +134,29 @@ function joinCircle(cid, uid) {
 // Deadline for the current round. The countdown restarts fresh after every payout.
 const deadline = c => c.round === 1 ? c.startAt + FUND_WINDOW : c.cycleStartAt + c.cycleDays * DAY;
 const graceEnd = c => deadline(c) + (c.round === 1 ? 0 : GRACE);
+// Auto-pay: a member switches it on and their balance pays each deposit/round for them as soon as it is due.
+async function autoPay(cid) {
+  const c = get(cid);
+  for (const m of c.members) {
+    if (!m.auto) continue;
+    const kind = c.status === 'deposits' && !m.deposit ? 'deposit' : c.status === 'active' && !m.paid ? 'round' : null;
+    if (!kind) continue;
+    const u = db.users[m.uid]; if (!u) continue;
+    if (u.wallet < c.amount) {
+      const key = `${kind}:${c.round}`;
+      if (m.autoWarn !== key) { m.autoWarn = key; receipt(m.uid, { title: 'Auto-pay needs funds', summary: `Add ${ngn(c.amount - u.wallet)} to your balance so ${c.name} can be paid automatically.`, amount: 0, reference: 'warn-' + id(3), circleName: c.name, status: 'Action needed' }); save(); }
+      continue;
+    }
+    try { await payFromBalance(cid, m.id, m.uid, kind); receipt(m.uid, { title: 'Auto-paid', summary: `${ngn(c.amount)} was paid automatically for ${c.name}.`, amount: c.amount, reference: 'auto-' + id(4), circleName: c.name }); }
+    catch (e) { console.error('auto-pay failed', cid, m.id, e.message); }
+  }
+}
+async function autoTick() { for (const cid of Object.keys(db.circles)) { try { await autoPay(cid); } catch (e) { console.error('auto tick', e.message); } } }
+async function setAuto(cid, uid, on) {
+  const c = get(cid), m = c.members.find(x => x.uid === uid); if (!m) throw new Error('You are not in this circle');
+  m.auto = !!on; m.autoWarn = null; save(); if (m.auto) await autoPay(cid);
+  return status(cid, uid);
+}
 const canSettle = c => c.status === 'active' && now(c) > graceEnd(c) && c.members.some(m => !m.paid);
 
 async function requestPayment(cid, memberId, kind = 'round', internal = false) {
@@ -247,7 +270,7 @@ function status(cid, uid) {
   const pct = to ? tier(to.uid).pct : 0, hb = to ? Math.floor(c.amount * (N - c.round) * pct / 100) : 0;
   const { shift, owner, ...rest } = c;
   return { ...rest, isOwner: owner === uid, myId: (c.members.find(m => m.uid === uid) || {}).id || null, pot, fee, pool: c.pool,
-    members: c.members.map(m => ({ id: m.id, name: m.name, slot: m.slot, paid: m.paid, deposit: m.deposit, hb: m.hb, defaulted: m.defaulted, tierPct: tier(m.uid).pct, tierLabel: tier(m.uid).label, you: m.uid === uid })),
+    members: c.members.map(m => ({ id: m.id, name: m.name, slot: m.slot, paid: m.paid, deposit: m.deposit, auto: !!m.auto, hb: m.hb, defaulted: m.defaulted, tierPct: tier(m.uid).pct, tierLabel: tier(m.uid).label, you: m.uid === uid })),
     deadline: active ? deadline(c) : null, graceEnd: active ? graceEnd(c) : null, now: now(c), canSettle: canSettle(c),
     receiver: to ? to.name : null, receiverHoldback: hb, receiverPct: pct, receiverNet: active ? pot - fee - hb - c.shortfall : null };
 }
@@ -283,4 +306,4 @@ async function devPayOthers(cid, me, exceptId) {
   }
 }
 
-module.exports = { startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
+module.exports = { setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
