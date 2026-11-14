@@ -54,33 +54,44 @@ async function api(path,opts){
   return d;
 }
 
-const welcome=$("#welcome");
-function showWelcome(){ welcome.classList.add("on"); document.body.classList.add("locked"); }
+const welcome=$("#welcome"),splash=$("#splash");
+const SESSION=()=>{try{return localStorage.getItem("ajo_session")==="1";}catch(e){return false;}};
+const setSession=v=>{try{v?localStorage.setItem("ajo_session","1"):localStorage.removeItem("ajo_session");}catch(e){}};
+function showSplash(){ splash.classList.add("on"); document.body.classList.add("locked"); clearTimeout(showSplash.t); showSplash.t=setTimeout(()=>{ if(!ME){ hideSplash(); showWelcome(); } },15000); }
+function hideSplash(){ splash.classList.remove("on"); clearTimeout(showSplash.t); }
+let pending=null;
+function showWelcome(){ hideSplash(); welcome.classList.add("on"); document.body.classList.add("locked"); }
 function hideWelcome(){ welcome.classList.remove("on"); document.body.classList.remove("locked"); }
 function werr(m){ $("#wErr").textContent=m||""; }
 const EMAILRX=/^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 $("#wGoogle").onclick=()=>{
   werr("");
-  if(CONFIG.privyAppId){ if(!Auth.ready||!Auth.login) return werr("Sign-in is still loading. Try again in a moment."); Auth.login({loginMethods:["google"]}); }
+  if(CONFIG.privyAppId||PRIVY_STARTED){ if(!Auth.ready||!Auth.login){ pending={t:"google"}; return werr("Loading sign-in, one moment..."); } Auth.login({loginMethods:["google"]}); }
   else werr("Google sign-in needs Privy to be set up. For now use your email.");
 };
 $("#wContinue").onclick=async()=>{
   werr(""); const e=$("#wEmail").value.trim().toLowerCase();
   if(!EMAILRX.test(e)) return werr("Enter a valid email address.");
-  if(CONFIG.privyAppId){
-    if(!Auth.ready||!Auth.login) return werr("Sign-in is still loading. Try again in a moment.");
+  if(CONFIG.privyAppId||PRIVY_STARTED){
+    if(!Auth.ready||!Auth.login){ pending={t:"email",e}; return werr("Loading sign-in, one moment..."); }
     Auth.login({loginMethods:["email"],prefill:{type:"email",value:e}});
   } else { localStorage.setItem("ajo_demo_email",e); await enter(); }
 };
 $("#wEmail").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#wContinue").click(); });
-window.addEventListener("ajoauth",()=>{ if(CONFIG.privyAppId&&Auth.ready&&Auth.authenticated&&!ME&&!entering) enter(); });
+window.addEventListener("ajoauth",()=>{
+  if(!Auth.ready) return;
+  if(Auth.authenticated){ if(!ME&&!entering){ pending=null; enter(); } return; }
+  // Privy finished loading and there is no saved session
+  if(!ME){ hideSplash(); if(!welcome.classList.contains("on")) showWelcome(); setSession(false); }
+  if(pending&&Auth.login){ const p=pending; pending=null; werr(""); if(p.t==="google") Auth.login({loginMethods:["google"]}); else Auth.login({loginMethods:["email"],prefill:{type:"email",value:p.e}}); }
+});
 
 let entering=false;
 async function enter(){
   entering=true;
   try{
-    ME=await api("/api/me"); hideWelcome(); seenInit();
+    ME=await api("/api/me"); hideWelcome(); hideSplash(); setSession(true); seenInit();
     const j=new URLSearchParams(location.search).get("join");
     if(!ME.name) await setupSheet();
     if(j){ history.replaceState(null,"",location.pathname); openApp("join"); $("#jCode").value=j; lookup(); }
@@ -89,7 +100,7 @@ async function enter(){
   entering=false;
 }
 function signOut(){
-  localStorage.removeItem("ajo_demo_email"); ME=null; circles=[]; cur=null; closeApp();
+  localStorage.removeItem("ajo_demo_email"); setSession(false); ME=null; circles=[]; cur=null; closeApp();
   if(CONFIG.privyAppId&&Auth.logout) Auth.logout();
   showWelcome();
 }
@@ -399,15 +410,14 @@ function pay(kind){
 }
 
 /* ---------- boot ---------- */
+let PRIVY_STARTED=false;
+function bootPrivy(id){ if(PRIVY_STARTED||!id) return; PRIVY_STARTED=true; startPrivy(id).catch(()=>{ PRIVY_STARTED=false; hideSplash(); showWelcome(); werr("Sign-in could not load. Check your connection and refresh."); }); }
 (async function(){
-  try{ CONFIG=await (await fetch("/api/config")).json(); }catch(e){ CONFIG={demoLogin:true}; }
+  let cached={}; try{ cached=JSON.parse(localStorage.getItem("ajo_cfg")||"{}"); }catch(e){}
+  if(cached.privyAppId){ CONFIG=cached; bootPrivy(cached.privyAppId); if(SESSION()) showSplash(); else showWelcome(); }   // start sign-in right away, before the server answers
+  try{ const c=await (await fetch("/api/config")).json(); CONFIG=c; try{ localStorage.setItem("ajo_cfg",JSON.stringify({privyAppId:c.privyAppId})); }catch(e){} }catch(e){ if(!CONFIG.privyAppId) CONFIG={demoLogin:true}; }
   MOCK=CONFIG.mode==="mock";
-  if(CONFIG.privyAppId) startPrivy(CONFIG.privyAppId).catch(()=>werr("Sign-in could not load. Check your connection and refresh."));
-  else $("#wDemo").style.display="block";
   renderSum();
-  const j=new URLSearchParams(location.search).get("join");
-  if(CONFIG.privyAppId){ showWelcome(); }          // Privy restores a saved session and fires "ajoauth"
-  else if(demoToken()){ await enter(); }
-  else showWelcome();
-  if(j&&!ME) $("#wErr").textContent="";
+  if(CONFIG.privyAppId){ bootPrivy(CONFIG.privyAppId); if(!cached.privyAppId){ if(SESSION()) showSplash(); else showWelcome(); } }
+  else { $("#wDemo").style.display="block"; if(demoToken()) await enter(); else showWelcome(); }
 })();

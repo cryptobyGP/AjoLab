@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AjoLabs</title>
 <link rel="icon" href="/favicon.svg">
+<link rel="preconnect" href="https://esm.sh" crossorigin>
+<link rel="modulepreload" href="https://esm.sh/react@18.3.1">
+<link rel="modulepreload" href="https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1">
+<link rel="modulepreload" href="https://esm.sh/@privy-io/react-auth@2?deps=react@18.3.1,react-dom@18.3.1">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -41,6 +45,7 @@
   <symbol id="okcircle" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" stroke-width="3"/><path d="M20 33l8 8 16-17" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
 
+<div class="welcome" id="splash"><div class="wbox"><svg class="logo" aria-hidden="true"><use href="#mark"/></svg><h1>AjoLabs</h1><p class="wn">Signing you in...</p></div></div>
 <div class="welcome" id="welcome">
   <div class="wbox">
     <svg class="logo" aria-hidden="true"><use href="#mark"/></svg>
