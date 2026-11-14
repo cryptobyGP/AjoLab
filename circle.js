@@ -64,6 +64,15 @@ function fund(uid, amount, reference) {
   receipt(uid, { title: 'Balance funded', summary: `${ngn(amount)} was added to your balance from your Paga account.`, amount, reference, kind: 'fund' });
   save(); return pub(u);
 }
+// Fund the balance through Paga Checkout. The balance is credited when Paga confirms the payment.
+async function startCheckout(uid, amount) {
+  const u = getUser(uid); amount = Math.floor(Number(amount));
+  if (!(amount >= 100)) throw new Error('Enter at least ₦100');
+  const reference = 'chk-' + id(8);
+  db.refs[reference] = { fundCheckout: true, uid, amount, done: false };
+  const r = await paga.requestPayment({ reference, amount, payerName: u.name, payerPhone: u.phone, payerEmail: u.email });
+  save(); return { reference, checkoutUrl: r.checkoutUrl || (r.raw && (r.raw.redirectUrl || r.raw.checkoutUrl || r.raw.paymentUrl)) || null, raw: r.raw };
+}
 // Pay a deposit or round from the user's balance, no checkout page needed.
 async function payFromBalance(cid, memberId, uid, kind = 'round') {
   const c = get(cid), u = getUser(uid);
@@ -148,6 +157,7 @@ async function requestPayment(cid, memberId, kind = 'round', internal = false) {
 async function markPaid(reference) {
   const ref = db.refs[reference]; if (!ref) throw new Error('unknown reference');
   if (ref.done) return { duplicate: true };
+  if (ref.fundCheckout) { ref.done = true; fund(ref.uid, ref.amount, 'fund-' + reference); save(); return { ok: true, funded: true }; }
   const c = get(ref.cid); const m = c.members.find(x => x.id === ref.memberId);
   if (ref.kind === 'deposit') {
     ref.done = true; m.deposit = c.amount;
@@ -273,4 +283,4 @@ async function devPayOthers(cid, me, exceptId) {
   }
 }
 
-module.exports = { payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
+module.exports = { startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };

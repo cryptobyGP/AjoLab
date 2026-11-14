@@ -29,6 +29,10 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, await circle.markPaid(reference));
     }
 
+    if (m === 'GET' && p === '/mock-pay' && paga.MODE === 'mock') {       // stand-in for Paga's checkout page
+      const ref = url.searchParams.get('ref'); await circle.markPaid(ref);
+      res.writeHead(302, { Location: '/?funded=1' }); return res.end();
+    }
     if (m === 'POST' && p === '/webhooks/paga-account') {                // a transfer arrived in a user's Paga account
       const b = await json(req);
       if (!paga.verifyAccountCallback(b)) return send(res, 401, { error: 'bad signature' });
@@ -53,6 +57,7 @@ const server = http.createServer(async (req, res) => {
       if (m === 'GET' && p === '/api/me') return send(res, 200, circle.pub(circle.getUser(uid)));
       if (m === 'POST' && p === '/api/me') return send(res, 200, circle.profile(uid, await json(req)));
       if (m === 'POST' && p === '/api/me/read') { const u = circle.getUser(uid); u.notes.forEach(n => (n.read = true)); require('./store').save(); return send(res, 200, circle.pub(u)); }
+      if (m === 'POST' && p === '/api/checkout') return send(res, 200, await circle.startCheckout(uid, (await json(req)).amount));
       if (m === 'POST' && p === '/api/account') return send(res, 200, await circle.account(uid));
       if (paga.MODE === 'mock' && m === 'POST' && p === '/api/dev/simulate-fund') return send(res, 200, circle.fund(uid, (await json(req)).amount));
       if (m === 'POST' && p === '/api/withdraw') return send(res, 200, await circle.withdraw(uid, (await json(req)).amount));
