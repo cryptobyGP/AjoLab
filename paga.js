@@ -53,14 +53,14 @@ async function createAccountLive({ uid, name, email, phone }) {
   const parts = String(name).trim().split(/\s+/), firstName = parts[0], lastName = parts.slice(1).join(' ') || parts[0];
   const callbackUrl = PUBLIC_URL + '/webhooks/paga-account';
   const body = { referenceNumber: reference, accountName: name, firstName, lastName, accountReference, callbackUrl };
-  if (phone) body.phoneNumber = phone; else if (email) body.email = email;
+  if (phone) body.phoneNumber = phone; if (email && !String(email).startsWith('demo:')) body.email = email;
   // Paga's docs give three different hash recipes for this call, so try each (and both signing styles) until one works.
   const recipes = [[reference, accountReference, '', '', '', callbackUrl], [reference, phone, name, accountReference, '', '', '', callbackUrl], [reference, accountReference, '', '', callbackUrl]];
   const sig = (f, m) => { const s = clean(f); return m === 'hmac' ? crypto.createHmac('sha512', HASH_KEY).update(s).digest('hex') : crypto.createHash('sha512').update(s + HASH_KEY).digest('hex'); };
   // One request per attempt (Paga rate-limits). Each failed attempt moves on to the next hash recipe, so repeated taps try them all.
   if (Date.now() < coolUntil) throw new Error('Paga is busy right now. Wait a minute and try again.');
   // Best guess first: the code sample in Paga's docs (recipe 1, plain SHA-512 with the hash key appended).
-  const combos = [[1, 'sha'], [1, 'hmac'], [0, 'sha'], [2, 'sha'], [0, 'hmac'], [2, 'hmac']];
+  const combos = [[0, 'sha'], [1, 'sha'], [2, 'sha'], [1, 'hmac'], [0, 'hmac'], [2, 'hmac']];
   const w = regWin || combos[regTry % combos.length];
   let d, lastErr;
   try {
@@ -68,7 +68,7 @@ async function createAccountLive({ uid, name, email, phone }) {
     if (String(d.statusCode) === '0') { regWin = w; console.log('Paga hash recipe that works:', w); }
     else { console.error('Paga account create said', JSON.stringify(d).slice(0, 300)); lastErr = new Error('Paga said: ' + (d.statusMessage || JSON.stringify(d).slice(0, 160))); }
   } catch (e) { lastErr = e; if (e.rateLimited) coolUntil = Date.now() + 90000; }
-  if (!regWin) regTry++;
+  if (!regWin && !(lastErr && /\(500\)/.test(lastErr.message))) regTry++;   // a 500 means Paga accepted the signature, so keep this recipe
   if (!d || String(d.statusCode) !== '0') throw lastErr || new Error('Paga could not create your account');
   if (String(d.statusCode) !== '0' || !d.accountNumber) throw new Error('Paga could not create your account: ' + (d.statusMessage || 'unknown error'));
   return { number: d.accountNumber, bank: 'Paga', name, ref: accountReference };
@@ -133,6 +133,17 @@ async function requestPayment({ reference, amount, payerName, payerPhone, payerE
   for (const body of bodies) {
     try { const d = await collect('/paymentRequest', body, hf); return { reference, raw: d, checkoutUrl: d.redirectUrl || d.checkoutUrl || d.paymentUrl || (d.data && (d.data.redirectUrl || d.data.checkoutUrl || d.data.paymentUrl)) || null }; }
     catch (e) { last = e; if (e.rateLimited || !/\(500\)/.test(e.message)) break; }
+  }
+  // Last try: Paga's hosted checkout session (same service the direct debit page uses), HTTP Basic, no hash header.
+  if (last && /\(500\)/.test(last.message)) {
+    try {
+      const res = await fetch(CHECKOUT + '/checkout/charge-process/start', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + Buffer.from(PUBLIC_KEY + ':' + SECRET_KEY).toString('base64') },
+        body: JSON.stringify({ referenceNumber: reference, amount: amt, currency: 'NGN', paymentMethods: ['BANK_TRANSFER', 'CARD'], callbackUrl, redirectUrl: PUBLIC_URL + '/?funded=1', sessionExpirySeconds: '3000', paymentExpirySeconds: '3000',
+          additionalProperties: { payerPhoneNumber: payer.phoneNumber, payerEmail: payer.email, payerName: payer.name } }) });
+      const text = await res.text(); let d = {}; try { d = JSON.parse(text); } catch {}
+      console.error('Paga hosted checkout', res.status, text.slice(0, 400));
+      if (res.ok && d.data && d.data.checkoutUrl) return { reference, raw: d, checkoutUrl: d.data.checkoutUrl };
+    } catch (e) { console.error('Paga hosted checkout failed', e.message); }
   }
   throw last;
 }
