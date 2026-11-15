@@ -66,7 +66,7 @@ async function createAccountLive({ uid, name, email, phone }) {
   try {
     d = await collect('/registerPersistentPaymentAccount', body, null, sig(recipes[w[0]], w[1]));
     if (String(d.statusCode) === '0') { regWin = w; console.log('Paga hash recipe that works:', w); }
-    else { lastErr = new Error('Paga said: ' + (d.statusMessage || JSON.stringify(d).slice(0, 160))); }
+    else { console.error('Paga account create said', JSON.stringify(d).slice(0, 300)); lastErr = new Error('Paga said: ' + (d.statusMessage || JSON.stringify(d).slice(0, 160))); }
   } catch (e) { lastErr = e; if (e.rateLimited) coolUntil = Date.now() + 90000; }
   if (!regWin) regTry++;
   if (!d || String(d.statusCode) !== '0') throw lastErr || new Error('Paga could not create your account');
@@ -120,9 +120,21 @@ function verifyPayoutCallback(body, headers) {
 /* ---------- checkout / payment request (kept for later) ---------- */
 async function requestPayment({ reference, amount, payerName, payerPhone, payerEmail }) {
   if (MODE === 'mock') return { reference, checkoutUrl: `/mock-pay?ref=${reference}` };
-  const body = { referenceNumber: reference, amount, currency: 'NGN', payer: { name: payerName, phoneNumber: payerPhone, email: payerEmail }, payee: { name: 'AjoLabs' }, payerCollectionFeeShare: 1, payeeCollectionFeeShare: 0, isSuppressMessages: true, paymentMethods: ['BANK_TRANSFER'], callBackUrl: PUBLIC_URL + '/webhooks/paga' };
-  const d = await collect('/paymentRequest', body, [reference, String(amount), 'NGN', payerPhone, payerEmail, '', '', '', '']);
-  return { reference, raw: d };
+  const amt = String(amount);                                   // Paga's docs send amount as a string, e.g. "5000"
+  const payer = { name: payerName || undefined, phoneNumber: payerPhone || undefined, email: payerEmail && !String(payerEmail).startsWith('demo:') ? payerEmail : undefined };
+  const hf = [reference, amt, 'NGN', payer.phoneNumber, payer.email];
+  const callBackUrl = PUBLIC_URL + '/webhooks/paga';
+  // Try the full request first. If Paga can't read it (500 system error), retry once with the smallest request the docs show.
+  const bodies = [
+    { referenceNumber: reference, amount: amt, currency: 'NGN', payer, payee: { name: 'AjoLabs' }, paymentMethods: ['BANK_TRANSFER'], callBackUrl },
+    { referenceNumber: reference, amount: amt, currency: 'NGN', payer, callBackUrl }
+  ];
+  let last;
+  for (const body of bodies) {
+    try { const d = await collect('/paymentRequest', body, hf); return { reference, raw: d, checkoutUrl: d.redirectUrl || d.checkoutUrl || d.paymentUrl || (d.data && (d.data.redirectUrl || d.data.checkoutUrl || d.data.paymentUrl)) || null }; }
+    catch (e) { last = e; if (e.rateLimited || !/\(500\)/.test(e.message)) break; }
+  }
+  throw last;
 }
 // Payment request callback. Hash: notificationId + statusCode + externalReferenceNumber + state + outstandingBalance + hashKey
 function verifyWebhook(rawBody) {
