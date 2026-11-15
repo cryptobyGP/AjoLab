@@ -22,4 +22,15 @@ async function email(user, rc) {
   } catch (e) { console.error('email failed', e.message); }
 }
 
-module.exports = { email, enabled: !!KEY };
+async function otp(user, code, purpose) {
+  if (!KEY || !user.email || user.email.startsWith('demo:')) return false;
+  const what = purpose === 'mandate' ? 'connect your bank' : 'send money to your bank';
+  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#111"><h2 style="margin:0 0 6px">Your AjoLabs code</h2><p style="color:#555">Use this code to ${what}. It expires in 10 minutes. If this was not you, ignore this email.</p><p style="font-size:34px;letter-spacing:8px;font-weight:bold;margin:18px 0">${esc(code)}</p><p style="color:#888;font-size:12px">AjoLabs is a hackathon prototype running on test money.</p></div>`;
+  try {
+    const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ from: FROM, to: [user.email], subject: `${code} is your AjoLabs code`, html, text: `Your AjoLabs code: ${code} (expires in 10 minutes)` }) });
+    if (!r.ok) { console.error('otp email failed', r.status, await r.text()); return false; }
+    return true;
+  } catch (e) { console.error('otp email failed', e.message); return false; }
+}
+
+module.exports = { email, otp, enabled: !!KEY };

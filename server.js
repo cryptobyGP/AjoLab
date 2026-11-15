@@ -1,6 +1,6 @@
 // Zero-dependency server: API + webhook + static UI from ./public
 const http = require('http'), fs = require('fs'), path = require('path');
-const paga = require('./paga'), circle = require('./circle'), auth = require('./auth'), notify = require('./notify');
+const paga = require('./paga'), circle = require('./circle'), auth = require('./auth'), notify = require('./notify'), otp = require('./otp');
 const PORT = process.env.PORT || 3000;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2' };
 
@@ -68,10 +68,16 @@ const server = http.createServer(async (req, res) => {
       if (m === 'POST' && p === '/api/me') return send(res, 200, circle.profile(uid, await json(req)));
       if (m === 'POST' && p === '/api/me/read') { const u = circle.getUser(uid); u.notes.forEach(n => (n.read = true)); require('./store').save(); return send(res, 200, circle.pub(u)); }
       if (m === 'POST' && p === '/api/checkout') return send(res, 200, await circle.startCheckout(uid, (await json(req)).amount));
-      if (m === 'POST' && p === '/api/mandate') return send(res, 200, await circle.startMandate(uid));
+      if (m === 'POST' && p === '/api/mandate') { otp.verify(uid, 'mandate', (await json(req)).otp); return send(res, 200, await circle.startMandate(uid)); }
       if (m === 'POST' && p === '/api/account') return send(res, 200, await circle.account(uid));
       if ((paga.MODE === 'mock' || process.env.TEST_TOPUP === '1') && m === 'POST' && p === '/api/dev/simulate-fund') return send(res, 200, circle.fund(uid, (await json(req)).amount));
-      if (m === 'POST' && p === '/api/withdraw') return send(res, 200, await circle.withdraw(uid, (await json(req)).amount));
+      if (m === 'POST' && p === '/api/otp/send') {
+        const purpose = (await json(req)).purpose === 'mandate' ? 'mandate' : 'withdraw', u = circle.getUser(uid), code = otp.create(uid, purpose);
+        const sent = await notify.otp(u, code, purpose);
+        if (!sent && paga.MODE !== 'mock') throw new Error('Could not send the code to your email. Try again.');
+        return send(res, 200, { sent, testCode: sent ? undefined : code, email: u.email && !u.email.startsWith('demo:') ? u.email : '' });   // in test mode with no email service, the code is shown on screen
+      }
+      if (m === 'POST' && p === '/api/withdraw') { const b = await json(req); otp.verify(uid, 'withdraw', b.otp); return send(res, 200, await circle.withdraw(uid, b.amount)); }
       if (m === 'GET' && p === '/api/circles') return send(res, 200, circle.mine(uid));
       if (m === 'POST' && p === '/api/circles') return send(res, 201, circle.status(circle.createCircle(await json(req), uid).id, uid));
 

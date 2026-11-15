@@ -255,10 +255,24 @@ $("#pfWithdraw").onclick=()=>{
   sheet('<h2>Transfer to bank</h2><p class="alede">Sent through '+PG+'Paga to '+esc(ME.bank.name)+' ending '+esc(ME.bank.account.slice(-4))+'.</p><div class="card"><div class="row"><span>Available</span><b>'+money(ME.wallet)+'</b></div></div>'+
     '<label for="wAmt" style="margin-top:0">Amount (₦)</label><input id="wAmt" type="number" inputmode="numeric" value="'+ME.wallet+'" min="100" max="'+ME.wallet+'">'+
     '<div id="wErr2" style="color:var(--bad);font-size:14px;margin-top:10px"></div><button class="pill block abtn" id="wGo">Send to my bank</button><button class="pill outline block abtn" data-close>Cancel</button>',
-  ()=>{ $("#wGo").onclick=async()=>{ const b=$("#wGo"); b.disabled=true; b.textContent="Sending...";
-    try{ const amt=+$("#wAmt").value; ME=await api("/api/withdraw",{body:{amount:amt}}); closeSheet(); renderPortfolio(); toast(money(amt)+" is on its way to your bank. Receipt saved."); seenSync(); }
-    catch(e){ $("#wErr2").textContent=e.message; b.disabled=false; b.textContent="Send to my bank"; } }; });
+  ()=>{ $("#wGo").onclick=async()=>{ const amt=+$("#wAmt").value; if(!(amt>=100)) return $("#wErr2").textContent="Minimum transfer is ₦100";
+    const otp=await askOtp("withdraw"); if(!otp) return;
+    toast("Sending...");
+    try{ ME=await api("/api/withdraw",{body:{amount:amt,otp}}); closeSheet(); renderPortfolio(); toast(money(amt)+" is on its way to your bank. Receipt saved."); seenSync(); }
+    catch(e){ toast(e.message); $("#pfWithdraw").click(); } }; });
 };
+// Ask for a 6-digit code sent to the user's email. Resolves with the code, or null if cancelled.
+function askOtp(purpose){
+  return new Promise(async res=>{
+    let r; try{ r=await api("/api/otp/send",{body:{purpose}}); }catch(e){ toast(e.message); return res(null); }
+    const where=r.sent?"We emailed a 6-digit code to <b>"+esc(r.email)+"</b>.":"Test mode: your code is <b>"+esc(r.testCode||"")+"</b>.";
+    sheet('<h2>Enter your code</h2><p class="alede">'+where+' It expires in 10 minutes.</p><input id="oCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" style="letter-spacing:6px;font-size:22px;text-align:center"><div id="oErr" style="color:var(--bad);font-size:14px;margin-top:10px"></div><button class="pill block abtn" id="oGo">Confirm</button><button class="pill outline block abtn" id="oCancel">Cancel</button>',()=>{
+      const inp=$("#oCode"); inp.focus();
+      const go=()=>{ const v=inp.value.trim(); if(!/^\d{6}$/.test(v)) return $("#oErr").textContent="Enter the 6 digits"; closeSheet(); res(v); };
+      $("#oGo").onclick=go; inp.addEventListener("keydown",e=>{ if(e.key==="Enter") go(); }); $("#oCancel").onclick=()=>{ closeSheet(); res(null); };
+    });
+  });
+}
 function seenSync(){ (ME.notes||[]).forEach(n=>seen&&seen.add(n.id)); }
 
 /* ---------- create ---------- */
@@ -420,7 +434,8 @@ function renderMandate(){ const b=$("#pfMandate"),t=$("#pfMandateTxt"); if(!b||!
   t.innerHTML=!m?PG+"Connect bank (direct debit)":m.status==="APPROVED"?PG+"Direct debit on"+(m.bank?" · "+esc(m.bank):""):m.status==="REJECTED"?PG+"Bank declined. Try again":PG+"Waiting for your bank...";
   b.disabled=!!(m&&m.status==="APPROVED"); }
 $("#pfMandate").onclick=async()=>{ const m=ME&&ME.mandate; if(m&&m.status==="APPROVED") return;
-  try{ const r=await api("/api/mandate",{body:{}}); if(r.checkoutUrl) location.href=r.checkoutUrl; }catch(e){ toast(e.message); } };
+  const otp=await askOtp("mandate"); if(!otp) return;
+  try{ const r=await api("/api/mandate",{body:{otp}}); if(r.checkoutUrl) location.href=r.checkoutUrl; }catch(e){ toast(e.message); } };
 function pay(kind){
   const c=cur,me=c.members.find(m=>m.you),what=kind==="deposit"?"Deposit":"Round "+c.round+" payment";
   if(ME.wallet<c.amount) return fundSheet(c.amount-ME.wallet);
