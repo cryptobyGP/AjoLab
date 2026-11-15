@@ -454,11 +454,13 @@ async function walletFundSheet(){
         const conn=new W.Connection("https://api.devnet.solana.com","confirmed");
         const tx=new W.Transaction().add(W.SystemProgram.transfer({fromPubkey:from,toPubkey:new W.PublicKey(cfg.treasury),lamports:Math.round(sol*1e9)}));
         tx.feePayer=from; tx.recentBlockhash=(await conn.getLatestBlockhash()).blockhash;
-        const sent=await prov.signAndSendTransaction(tx); const signature=sent.signature||sent;
+        let signature;
+        if(prov.signTransaction){ const signed=await prov.signTransaction(tx); signature=await conn.sendRawTransaction(signed.serialize(),{skipPreflight:false}); }   // wallet only signs, we send to devnet ourselves
+        else { const sent=await prov.signAndSendTransaction(tx); signature=sent.signature||sent; }
         b.textContent="Confirming on Solana...";
         for(let i=0;i<30;i++){ const r=await api("/api/wallet/fund",{body:{signature}}); if(!r.pending){ ME=r.me; closeSheet(); renderPortfolio(); seenSync(); return toast(money(r.naira)+" added from your wallet"); } await new Promise(z=>setTimeout(z,2000)); }
         throw new Error("Still confirming. Check your balance in a minute.");
-      }catch(e){ err.textContent=/reject|denied|cancel/i.test(e.message||"")?"Wallet request cancelled":(e.message||"Wallet payment failed"); b.disabled=false; b.textContent="Pay from my wallet"; }
+      }catch(e){ err.textContent=/reject|denied|cancel/i.test(e.message||"")?"Wallet request cancelled":(/insufficient|0x1|debit an account/i.test(e.message||"")?"Not enough devnet SOL in this wallet. Get free test SOL at faucet.solana.com (Devnet).":(e.message||"Wallet payment failed")); b.disabled=false; b.textContent="Pay from my wallet"; }
     }; });
 }
 function renderWallet(){ const t=$("#pfWalletTxt"); if(!t||!ME) return; const w=ME.sol; if(w){ if(!renderWallet.done||renderWallet.done!==w.address){ renderWallet.done=w.address; loadUsd(); } } else { renderWallet.done=null; loadUsd(); }
