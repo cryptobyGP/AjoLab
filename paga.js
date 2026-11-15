@@ -107,8 +107,19 @@ async function payout({ reference, amount, bankCode, accountNumber, name, phone,
   const v = await business('/validateDepositToBank', base, f);
   console.error('Paga validateDepositToBank', JSON.stringify(v).slice(0, 300));
   if (Number(v.responseCode) !== 0) throw new Error('Paga could not validate that bank account' + (v.message ? ': ' + v.message : ''));
-  const d = await business('/depositToBank', { ...base, recipientName: name, suppressRecipientMessage: 'true', alternateSenderName: 'AjoLabs', remarks: 'AjoLabs transfer', statusCallbackUrl: PUBLIC_URL + '/webhooks/paga-payout' }, f);
-  console.error('Paga depositToBank', JSON.stringify(d).slice(0, 300));
+  // Paga's sandbox sometimes answers 500 to one body shape, so try the docs' exact example shape first, then variations.
+  const amt2 = Number(amount).toFixed(2), f2 = [reference, amt2, bankCode, accountNumber];
+  const tries = [
+    [{ referenceNumber: reference, amount: amt2, currency: 'NGN', destinationBankUUID: bankCode, destinationBankAccountNumber: accountNumber, remarks: 'AjoLabs transfer', statusCallbackUrl: PUBLIC_URL + '/webhooks/paga-payout' }, f2],
+    [{ referenceNumber: reference, amount: amt2, destinationBankUUID: bankCode, destinationBankAccountNumber: accountNumber }, f2],
+    [{ ...base, recipientName: name, suppressRecipientMessage: 'true', remarks: 'AjoLabs transfer', statusCallbackUrl: PUBLIC_URL + '/webhooks/paga-payout' }, f]
+  ];
+  let d;
+  for (const [body, hf] of tries) {
+    d = await business('/depositToBank', body, hf);
+    console.error('Paga depositToBank', JSON.stringify(d).slice(0, 300));
+    if (Number(d.responseCode) === 0 || Number(d.responseCode) !== -1) break;
+  }
   if (Number(d.responseCode) !== 0) throw new Error('Paga did not accept the transfer' + (d.message ? ': ' + d.message : ''));
   return { reference, status: 'SUCCESS', fee: d.fee, raw: d };
 }
