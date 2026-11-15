@@ -399,6 +399,7 @@ async function checkout(){
   catch(e){ toast(e.message); b.disabled=false; b.textContent="Pay with Paga Checkout"; }
 }
 async function fundSheet(need){
+  if(CONFIG.topup===undefined){ try{ const c=await (await fetch("/api/config")).json(); if(c&&c.mode){ CONFIG=c; MOCK=c.mode==="mock"; } }catch(e){} }   // the page may have loaded while the server was waking up
   let acc,accErr;
   try{ acc=(await api("/api/account",{body:{}})).account; }catch(e){ accErr=e.message; acc=null; }
   const chk='<label for="cAmt">Amount (₦)</label><input id="cAmt" type="number" inputmode="numeric" value="'+(need||5000)+'"><button class="pill block abtn" id="cPay">Pay with '+PG+'Paga Checkout</button>';
