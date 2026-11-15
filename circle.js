@@ -91,7 +91,7 @@ async function withdraw(uid, amount) {
   if (paga.MODE !== 'mock' && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(u.bank.code || '')) throw new Error('Please choose your bank again (Account > Bank > Change). It was saved before Paga went live.');
   const reference = 'wd-' + id(5); u.wallet -= amount; db.refs[reference] = { withdraw: true, uid, amount, refunded: false }; save();
   try {
-    const r = await paga.payout({ reference, amount, bankCode: u.bank.code, accountNumber: u.bank.account, name: u.name || u.email });
+    const r = await paga.payout({ reference, amount, bankCode: u.bank.code, accountNumber: u.bank.account, name: u.name || u.email, phone: u.phone, email: u.email });
     receipt(uid, { title: 'Transfer to bank', summary: `${ngn(amount)} sent to account ending ${u.bank.account.slice(-4)} through Paga.`, amount, reference, kind: 'withdraw', status: r.status === 'SUCCESS' ? 'Successful' : r.status });
   } catch (e) { u.wallet += amount; db.refs[reference].refunded = true; save(); throw new Error('Transfer failed, your money is still in your balance. ' + e.message); }
   save(); return pub(u);
