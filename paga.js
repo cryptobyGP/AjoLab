@@ -107,7 +107,7 @@ async function payout({ reference, amount, bankCode, accountNumber, name, phone,
   const v = await business('/validateDepositToBank', base, f);
   console.error('Paga validateDepositToBank', JSON.stringify(v).slice(0, 300));
   if (Number(v.responseCode) !== 0) throw new Error('Paga could not validate that bank account' + (v.message ? ': ' + v.message : ''));
-  const d = await business('/depositToBank', { ...base, recipientName: name, recipientPhoneNumber: phone || '08012345678', recipientEmail: email && !String(email).startsWith('demo:') ? email : undefined, senderName: 'AjoLabs', locale: 'en', remarks: 'AjoLabs transfer', statusCallbackUrl: PUBLIC_URL + '/webhooks/paga-payout' }, f);
+  const d = await business('/depositToBank', { ...base, recipientName: name, suppressRecipientMessage: 'true', alternateSenderName: 'AjoLabs', remarks: 'AjoLabs transfer', statusCallbackUrl: PUBLIC_URL + '/webhooks/paga-payout' }, f);
   console.error('Paga depositToBank', JSON.stringify(d).slice(0, 300));
   if (Number(d.responseCode) !== 0) throw new Error('Paga did not accept the transfer' + (d.message ? ': ' + d.message : ''));
   return { reference, status: 'SUCCESS', fee: d.fee, raw: d };
