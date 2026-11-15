@@ -1,5 +1,5 @@
 // Keeps the sign-in code (React, Privy) and the app files on the phone so repeat visits open fast.
-const C = 'ajolabs-v2';
+const C = 'ajolabs-v3';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {
@@ -12,7 +12,7 @@ self.addEventListener('fetch', e => {
     const hit = await c.match(e.request);
     if (own) {   // our own files: newest version first, saved copy only if the network is slow or down
       const fresh = fetch(e.request).then(r => { if (r.ok) c.put(e.request, r.clone()); return r; });
-      return Promise.race([fresh, new Promise(res => setTimeout(() => res(hit), 2500))]).then(r => r || fresh).catch(() => hit);
+      return Promise.race([fresh, new Promise(res => setTimeout(() => res(hit), 8000))]).then(r => r || fresh).catch(() => hit);
     }
     const net = fetch(e.request).then(r => { if (r.ok) c.put(e.request, r.clone()); return r; }).catch(() => hit);
     return hit || net;     // cached copy shows instantly, and is refreshed in the background
