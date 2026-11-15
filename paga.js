@@ -154,11 +154,10 @@ function verifyMandateCallback(b) {
   if (MODE === 'mock') return true;
   return safeEq(b.hash, sign([b.statusCode, b.timeStamp, b.accountNumber, b.bankName, b.referenceNumber, b.mandateStatus]));
 }
-// Charge callback hash: fields to be confirmed from Paga's docs (set PAGA_CHARGE_HASH_FIELDS as a comma list to override)
-const CHARGE_FIELDS = (process.env.PAGA_CHARGE_HASH_FIELDS || 'statusCode,timeStamp,accountNumber,bankName,referenceNumber,processStatusId').split(',');
+// Charge callback hash: referenceNumber + accountReference + amount (exactly as received, e.g. "600.00") + hashKey
 function verifyChargeCallback(b) {
   if (MODE === 'mock') return true;
-  return safeEq(b.hash, sign(CHARGE_FIELDS.map(f => b[f])));
+  return safeEq(b.hash, sign([b.referenceNumber, b.accountReference, b.amount]));
 }
 
 module.exports = { setupMandate, chargeMandate, verifyMandateCallback, verifyChargeCallback, MODE, createAccount, verifyAccountCallback, banks, payout, verifyPayoutCallback, requestPayment, verifyWebhook };
