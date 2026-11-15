@@ -105,8 +105,10 @@ async function payout({ reference, amount, bankCode, accountNumber, name }) {
   const amt = String(amount), f = [reference, amt, bankCode, accountNumber];
   const base = { referenceNumber: reference, amount: amt, currency: 'NGN', destinationBankUUID: bankCode, destinationBankAccountNumber: accountNumber };
   const v = await business('/validateDepositToBank', base, f);
+  console.error('Paga validateDepositToBank', JSON.stringify(v).slice(0, 300));
   if (Number(v.responseCode) !== 0) throw new Error('Paga could not validate that bank account' + (v.message ? ': ' + v.message : ''));
   const d = await business('/depositToBank', { ...base, recipientName: name, remarks: 'AjoLabs transfer', statusCallbackUrl: PUBLIC_URL + '/webhooks/paga-payout' }, f);
+  console.error('Paga depositToBank', JSON.stringify(d).slice(0, 300));
   if (Number(d.responseCode) !== 0) throw new Error('Paga did not accept the transfer' + (d.message ? ': ' + d.message : ''));
   return { reference, status: 'SUCCESS', fee: d.fee, raw: d };
 }
@@ -138,7 +140,7 @@ async function requestPayment({ reference, amount, payerName, payerPhone, payerE
   if (last && /\(500\)/.test(last.message)) {
     try {
       const res = await fetch(CHECKOUT + '/checkout/charge-process/start', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + Buffer.from(PUBLIC_KEY + ':' + SECRET_KEY).toString('base64') },
-        body: JSON.stringify({ referenceNumber: reference, amount: amt, currency: 'NGN', paymentMethods: ['BANK_TRANSFER', 'CARD'], callbackUrl, redirectUrl: PUBLIC_URL + '/?funded=1', sessionExpirySeconds: '3000', paymentExpirySeconds: '3000',
+        body: JSON.stringify({ referenceNumber: reference, amount: amt, currency: 'NGN', paymentMethods: ['BANK_TRANSFER', 'CARD'], callbackUrl: callBackUrl, redirectUrl: PUBLIC_URL + '/?funded=1', sessionExpirySeconds: '3000', paymentExpirySeconds: '3000',
           additionalProperties: { payerPhoneNumber: payer.phoneNumber, payerEmail: payer.email, payerName: payer.name } }) });
       const text = await res.text(); let d = {}; try { d = JSON.parse(text); } catch {}
       console.error('Paga hosted checkout', res.status, text.slice(0, 400));
