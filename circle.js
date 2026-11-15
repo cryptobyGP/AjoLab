@@ -354,6 +354,15 @@ function linkWallet(uid, address, message, signatureB64) {
   receipt(uid, { title: 'Wallet connected', summary: `Solana wallet ${address.slice(0, 4)}...${address.slice(-4)} (devnet) is linked to your account.`, reference: 'wal-' + id(4), kind: 'wallet' });
   save(); return pub_(u);
 }
+// Credit the naira balance for a verified on-chain payment. Each Solana signature can be used once.
+function creditWallet(uid, signature, naira, lamports) {
+  const reference = 'sol-' + signature; const u = getUser(uid);
+  if (db.refs[reference]) return pub(u);
+  db.refs[reference] = { fund: true, done: true };
+  u.wallet += naira;
+  receipt(uid, { title: 'Funded from wallet', summary: `${(lamports / 1e9).toFixed(4)} SOL (devnet) from your wallet became ${ngn(naira)} in your balance at the demo rate.`, amount: naira, reference, kind: 'fund' });
+  save(); return pub(u);
+}
 function unlinkWallet(uid) { const u = getUser(uid); u.sol = null; save(); return pub_(u); }
 const pub_ = u => pub(u);
-module.exports = { linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
+module.exports = { creditWallet, linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };

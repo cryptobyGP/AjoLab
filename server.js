@@ -1,6 +1,6 @@
 // Zero-dependency server: API + webhook + static UI from ./public
 const http = require('http'), fs = require('fs'), path = require('path');
-const paga = require('./paga'), circle = require('./circle'), auth = require('./auth'), notify = require('./notify'), otp = require('./otp');
+const paga = require('./paga'), circle = require('./circle'), auth = require('./auth'), notify = require('./notify'), otp = require('./otp'), sol = require('./sol');
 const PORT = process.env.PORT || 3000;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2' };
 
@@ -68,6 +68,14 @@ const server = http.createServer(async (req, res) => {
       if (m === 'POST' && p === '/api/me') return send(res, 200, circle.profile(uid, await json(req)));
       if (m === 'POST' && p === '/api/me/read') { const u = circle.getUser(uid); u.notes.forEach(n => (n.read = true)); require('./store').save(); return send(res, 200, circle.pub(u)); }
       if (m === 'POST' && p === '/api/checkout') return send(res, 200, await circle.startCheckout(uid, (await json(req)).amount));
+      if (m === 'GET' && p === '/api/wallet/balances') { const u = circle.getUser(uid); if (!u.sol) throw new Error('Connect a wallet first'); return send(res, 200, await sol.balances(u.sol.address)); }
+      if (m === 'POST' && p === '/api/wallet/fund') {
+        const u = circle.getUser(uid); if (!u.sol) throw new Error('Connect a wallet first');
+        const b = await json(req), v = await sol.verifyPayment(String(b.signature || ''), u.sol.address);
+        if (v.pending) return send(res, 200, { pending: true });
+        return send(res, 200, { me: circle.creditWallet(uid, b.signature, v.naira, v.lamports), naira: v.naira });
+      }
+      if (m === 'GET' && p === '/api/wallet/config') return send(res, 200, sol.config());
       if (m === 'POST' && p === '/api/wallet') { const b = await json(req); return send(res, 200, b.unlink ? circle.unlinkWallet(uid) : circle.linkWallet(uid, b.address, b.message, b.signature)); }
       if (m === 'POST' && p === '/api/mandate') { otp.verify(uid, 'mandate', (await json(req)).otp); return send(res, 200, await circle.startMandate(uid)); }
       if (m === 'POST' && p === '/api/account') return send(res, 200, await circle.account(uid));

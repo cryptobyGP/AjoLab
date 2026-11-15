@@ -417,25 +417,55 @@ async function fundSheet(need){
   let acc,accErr;
   try{ acc=(await api("/api/account",{body:{}})).account; }catch(e){ accErr=e.message; acc=null; }
   const chk='<label for="cAmt">Amount (₦)</label><input id="cAmt" type="number" inputmode="numeric" value="'+(need||5000)+'"><button class="pill block abtn" id="cPay">Pay with '+PG+'Paga Checkout</button>';
-  if(!acc){ return sheet('<h2>Fund your balance</h2><p class="alede">Your Paga account number is not ready ('+esc(accErr)+'). You can still fund with checkout.</p>'+chk+(MOCK||CONFIG.topup?'<label for="fAmt">Test money (sandbox only, no real naira)</label><input id="fAmt" type="number" inputmode="numeric" value="'+(need||5000)+'"><button class="pill outline block abtn" id="fDemo">Add test money</button>':"")+'<button class="pill outline block abtn" data-close>Close</button>',()=>{ $("#cPay").onclick=checkout; wireDemo(); }); }
+  if(!acc){ return sheet('<h2>Fund your balance</h2><p class="alede">Your Paga account number is not ready ('+esc(accErr)+'). You can still fund with checkout.</p>'+chk+(MOCK||CONFIG.topup?'<label for="fAmt">Test money (sandbox only, no real naira)</label><input id="fAmt" type="number" inputmode="numeric" value="'+(need||5000)+'"><button class="pill outline block abtn" id="fDemo">Add test money</button>':"")+(ME.sol?'<button class="pill outline block abtn" id="fWal">Fund with Solana wallet</button>':"")+'<button class="pill outline block abtn" data-close>Close</button>',()=>{ $("#cPay").onclick=checkout; wireDemo(); if($("#fWal")) $("#fWal").onclick=walletFundSheet; }); }
   sheet('<h2>Fund your balance</h2><p class="alede">'+(need?"You need "+money(need)+" more. ":"")+'Send naira from any bank app to your own '+PG+'Paga account below. It shows in your balance once Paga confirms it.</p>'+
     '<div class="card"><div class="row"><span>Account number</span><b id="fAcc" style="font-size:22px;letter-spacing:1px">'+esc(acc.number)+'</b></div><div class="row" style="margin-top:10px"><span>Bank</span><b>'+esc(acc.bank)+'</b></div><div class="row" style="margin-top:10px"><span>Account name</span><b>'+esc(acc.name)+'</b></div></div>'+
     '<button class="pill block abtn" id="fCopy">Copy account number</button>'+'<p class="alede" style="margin-top:14px">Or pay by card or transfer on Paga Checkout:</p>'+chk+
     (MOCK||CONFIG.topup?'<label for="fAmt">Test money (sandbox only, no real naira)</label><input id="fAmt" type="number" inputmode="numeric" value="'+(need||5000)+'"><button class="pill outline block abtn" id="fDemo">Add test money</button>':"")+
+    (ME.sol?'<button class="pill outline block abtn" id="fWal">Fund with Solana wallet</button>':"")+
     '<button class="pill outline block abtn" data-close>Close</button>',
   ()=>{
-    $("#cPay").onclick=checkout;
+    $("#cPay").onclick=checkout; if($("#fWal")) $("#fWal").onclick=walletFundSheet;
     $("#fCopy").onclick=()=>{ (navigator.clipboard?navigator.clipboard.writeText(acc.number):Promise.reject()).then(()=>toast("Account number copied"),()=>toast("Long-press the number to copy")); };
     wireDemo();
   });
 }
 $("#pfFund").onclick=()=>fundSheet();
 /* ---------- Solana wallet (Phantom, devnet) ---------- */
-function renderWallet(){ const t=$("#pfWalletTxt"); if(!t||!ME) return; const w=ME.sol;
+function walletProv(){ return (window.phantom&&window.phantom.solana&&window.phantom.solana.isPhantom)?window.phantom.solana:(window.solana&&window.solana.isPhantom?window.solana:(window.braveSolana||null)); }
+const usd=n=>"$"+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+async function loadUsd(){ const box=$("#pfUsd"); if(!box) return; if(!ME||!ME.sol){ box.style.display="none"; return; } box.style.display="";
+  try{ const b=await api("/api/wallet/balances"); $("#pfUsdTot").textContent=usd(b.totalUsd); $("#pfUsdDet").textContent=b.usdc.toFixed(2)+" USDC · "+b.sol.toFixed(3)+" SOL (≈"+usd(b.solUsd)+")"; }
+  catch(e){ $("#pfUsdTot").textContent="—"; $("#pfUsdDet").textContent="Could not read the wallet. Tap refresh."; } }
+$("#pfUsdRef").onclick=loadUsd;
+async function walletFundSheet(){
+  let cfg; try{ cfg=await api("/api/wallet/config"); }catch(e){ return toast(e.message); }
+  if(!cfg.treasury) return toast("Wallet payments are not switched on yet");
+  const rate=cfg.solUsd*cfg.ngnPerUsd;
+  sheet('<h2>Fund with wallet</h2><p class="alede">Send devnet SOL (test money) from your connected wallet. It becomes naira in your balance at a fixed demo rate: 1 SOL = '+usd(cfg.solUsd)+' = '+money(rate)+'.</p><label for="sAmt">Amount (SOL)</label><input id="sAmt" type="number" inputmode="decimal" step="0.01" value="0.1"><p class="muted" id="sEst" style="font-size:13px;margin:6px 0 0"></p><div id="sErr" style="color:var(--bad);font-size:14px;margin-top:10px"></div><button class="pill block abtn" id="sGo">Pay from my wallet</button><button class="pill outline block abtn" data-close>Cancel</button>',()=>{
+    const est=()=>{ $("#sEst").textContent="You will get about "+money(Math.floor((+$("#sAmt").value||0)*rate)); }; est(); $("#sAmt").oninput=est;
+    $("#sGo").onclick=async()=>{ const b=$("#sGo"), err=$("#sErr"); err.textContent=""; const sol=+$("#sAmt").value; if(!(sol>0)) return err.textContent="Enter an amount";
+      const prov=walletProv(); if(!prov) return err.textContent="Open AjoLabs in your wallet browser (Phantom or Brave Wallet) to pay.";
+      b.disabled=true; b.textContent="Approve in your wallet...";
+      try{
+        const W=await import("https://esm.sh/@solana/web3.js@1.95.3");
+        await prov.connect(); const from=prov.publicKey||(await prov.connect()).publicKey;
+        if(from.toString()!==ME.sol.address) throw new Error("Use the wallet you connected: "+ME.sol.address.slice(0,4)+"..."+ME.sol.address.slice(-4));
+        const conn=new W.Connection("https://api.devnet.solana.com","confirmed");
+        const tx=new W.Transaction().add(W.SystemProgram.transfer({fromPubkey:from,toPubkey:new W.PublicKey(cfg.treasury),lamports:Math.round(sol*1e9)}));
+        tx.feePayer=from; tx.recentBlockhash=(await conn.getLatestBlockhash()).blockhash;
+        const sent=await prov.signAndSendTransaction(tx); const signature=sent.signature||sent;
+        b.textContent="Confirming on Solana...";
+        for(let i=0;i<30;i++){ const r=await api("/api/wallet/fund",{body:{signature}}); if(!r.pending){ ME=r.me; closeSheet(); renderPortfolio(); seenSync(); return toast(money(r.naira)+" added from your wallet"); } await new Promise(z=>setTimeout(z,2000)); }
+        throw new Error("Still confirming. Check your balance in a minute.");
+      }catch(e){ err.textContent=/reject|denied|cancel/i.test(e.message||"")?"Wallet request cancelled":(e.message||"Wallet payment failed"); b.disabled=false; b.textContent="Pay from my wallet"; }
+    }; });
+}
+function renderWallet(){ const t=$("#pfWalletTxt"); if(!t||!ME) return; const w=ME.sol; if(w){ if(!renderWallet.done||renderWallet.done!==w.address){ renderWallet.done=w.address; loadUsd(); } } else { renderWallet.done=null; loadUsd(); }
   t.innerHTML=w?'<span style="color:var(--mint)">&#9679;</span> '+esc(w.address.slice(0,4))+"..."+esc(w.address.slice(-4))+' · devnet':"Connect Solana wallet"; }
 $("#pfWallet").onclick=async()=>{
   if(ME&&ME.sol){ return sheet('<h2>Solana wallet</h2><p class="alede">Connected on <b>devnet</b> (test network).</p><div class="card"><div class="row"><span>Address</span><b style="font-size:12px;word-break:break-all;text-align:right">'+esc(ME.sol.address)+'</b></div></div><button class="pill outline block abtn" id="wOff">Disconnect wallet</button><button class="pill block abtn" data-close>Close</button>',()=>{ $("#wOff").onclick=async()=>{ try{ ME=await api("/api/wallet",{body:{unlink:true}}); closeSheet(); renderPortfolio(); toast("Wallet disconnected"); }catch(e){ toast(e.message); } }; }); }
-  const prov=(window.phantom&&window.phantom.solana&&window.phantom.solana.isPhantom)?window.phantom.solana:(window.solana&&window.solana.isPhantom?window.solana:null);
+  const prov=walletProv();
   if(!prov){ const here=encodeURIComponent(location.origin); return sheet('<h2>Connect a Solana wallet</h2><p class="alede">No wallet found in this browser. Open AjoLabs inside the <b>Phantom</b> app browser to connect.</p><a class="pill block abtn" style="text-align:center;text-decoration:none" href="https://phantom.app/ul/browse/'+here+'?ref='+here+'">Open in Phantom</a><button class="pill outline block abtn" data-close>Close</button>'); }
   try{
     const r=await prov.connect(); const address=r.publicKey.toString();
