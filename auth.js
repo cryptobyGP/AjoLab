@@ -39,5 +39,8 @@ async function verify(token, headerEmail) {
   return { uid: c.sub, email: EMAIL.test(email) ? email : '' };
 }
 
+// Load Privy's sign-in keys at startup, so the first person to sign in doesn't wait for them.
+if (APP_ID && !KEY) publicKeys().catch(() => {});
+
 const config = () => ({ privyAppId: APP_ID, demoLogin: DEMO });
 module.exports = { verify, config };
