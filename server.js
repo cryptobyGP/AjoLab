@@ -33,6 +33,16 @@ const server = http.createServer(async (req, res) => {
       const ref = url.searchParams.get('ref'); await circle.markPaid(ref);
       res.writeHead(302, { Location: '/?funded=1' }); return res.end();
     }
+    if (m === 'GET' && p === '/mock-mandate' && paga.MODE === 'mock') {   // stand-in for Paga's direct debit page
+      circle.mandateEvent({ referenceNumber: url.searchParams.get('ref'), mandateStatus: 'APPROVED', bankName: 'Opay', accountNumber: '0000008197' });
+      res.writeHead(302, { Location: '/?mandate=done' }); return res.end();
+    }
+    if (m === 'POST' && p === '/webhooks/paga-mandate') {                // direct debit: mandate status and charge results
+      const b = await json(req);
+      if (b.event === 'Charge_Complete') { if (!paga.verifyChargeCallback(b)) return send(res, 401, { error: 'bad signature' }); circle.chargeDone(b); circle.autoTick(); }
+      else { if (!paga.verifyMandateCallback(b)) return send(res, 401, { error: 'bad signature' }); circle.mandateEvent(b); }
+      return send(res, 200, { status: 'SUCCESS' });
+    }
     if (m === 'POST' && p === '/webhooks/paga-account') {                // a transfer arrived in a user's Paga account
       const b = await json(req);
       if (!paga.verifyAccountCallback(b)) return send(res, 401, { error: 'bad signature' });
@@ -58,6 +68,7 @@ const server = http.createServer(async (req, res) => {
       if (m === 'POST' && p === '/api/me') return send(res, 200, circle.profile(uid, await json(req)));
       if (m === 'POST' && p === '/api/me/read') { const u = circle.getUser(uid); u.notes.forEach(n => (n.read = true)); require('./store').save(); return send(res, 200, circle.pub(u)); }
       if (m === 'POST' && p === '/api/checkout') return send(res, 200, await circle.startCheckout(uid, (await json(req)).amount));
+      if (m === 'POST' && p === '/api/mandate') return send(res, 200, await circle.startMandate(uid));
       if (m === 'POST' && p === '/api/account') return send(res, 200, await circle.account(uid));
       if ((paga.MODE === 'mock' || process.env.TEST_TOPUP === '1') && m === 'POST' && p === '/api/dev/simulate-fund') return send(res, 200, circle.fund(uid, (await json(req)).amount));
       if (m === 'POST' && p === '/api/withdraw') return send(res, 200, await circle.withdraw(uid, (await json(req)).amount));

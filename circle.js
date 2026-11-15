@@ -39,7 +39,7 @@ function receipt(uid, rc) {
   notify.email(u, rc); return rc;
 }
 const pub = u => ({ uid: u.uid, email: u.email, name: u.name, phone: u.phone, bank: u.bank, wallet: u.wallet, finished: u.finished, defaults: u.defaults,
-  tier: tierOf(u), account: u.account || null, notes: u.notes, receipts: u.receipts });
+  tier: tierOf(u), account: u.account || null, mandate: u.mandate ? { status: u.mandate.status, bank: u.mandate.bank || null } : null, notes: u.notes, receipts: u.receipts });
 
 // Paga reports the final result of a bank transfer. If it failed, the money goes back to the user's balance.
 function payoutResult(reference, code) {
@@ -134,6 +134,38 @@ function joinCircle(cid, uid) {
 // Deadline for the current round. The countdown restarts fresh after every payout.
 const deadline = c => c.round === 1 ? c.startAt + FUND_WINDOW : c.cycleStartAt + c.cycleDays * DAY;
 const graceEnd = c => deadline(c) + (c.round === 1 ? 0 : GRACE);
+/* ---------- direct debit: connect a bank once, then AjoLabs tops up the balance from it when a payment is due ---------- */
+async function startMandate(uid) {
+  const u = getUser(uid);
+  if (u.mandate && u.mandate.status === 'APPROVED') throw new Error('Your bank is already connected');
+  const reference = 'DD-' + id(6), accountReference = ('AJODD' + id(8)).toUpperCase();
+  u.mandate = { ref: reference, accountReference, status: 'PENDING' }; db.refs[reference] = { mandate: true, uid };
+  const r = await paga.setupMandate({ reference, accountReference, amountLimit: 500000, payerPhone: u.phone, payerEmail: u.email && !u.email.startsWith('demo:') ? u.email : undefined, payerName: u.name });
+  save(); return r;
+}
+function mandateEvent(b) {       // callback from Paga: VERIFIED, then APPROVED (or REJECTED)
+  const ref = db.refs[b.referenceNumber]; if (!ref || !ref.mandate) return;
+  const u = getUser(ref.uid), st = String(b.mandateStatus || '').toUpperCase(); if (!st) return;
+  const was = u.mandate.status; u.mandate.status = st; if (b.bankName) u.mandate.bank = b.bankName + (b.accountNumber ? ' ' + String(b.accountNumber).slice(-4) : '');
+  if (st === 'APPROVED' && was !== 'APPROVED') receipt(ref.uid, { title: 'Bank connected', summary: `Direct debit is on. AjoLabs can top up your balance from ${u.mandate.bank || 'your bank'} when a payment is due.`, reference: b.referenceNumber, kind: 'mandate' });
+  if (st === 'REJECTED') receipt(ref.uid, { title: 'Bank not connected', summary: 'Your bank declined direct debit. You can try again.', reference: b.referenceNumber, status: 'Failed', kind: 'mandate' });
+  save();
+}
+// Charge the connected bank for the shortfall. Paga confirms later by callback; the balance is credited then.
+async function debitFor(uid, amount, why) {
+  const u = getUser(uid); if (!u.mandate || u.mandate.status !== 'APPROVED') return false;
+  const reference = 'CHG-' + id(6); db.refs[reference] = { charge: true, uid, amount, done: false };
+  try { const r = await paga.chargeMandate({ reference, amount, accountReference: u.mandate.accountReference }); save(); if (r.mock) chargeDone({ referenceNumber: reference, statusCode: '0', statusMessage: 'SUCCESSFUL' }); return true; }
+  catch (e) { delete db.refs[reference]; console.error('debit failed', e.message); receipt(uid, { title: 'Direct debit failed', summary: `We could not charge your bank for ${why}: ${e.message}`, amount, reference, status: 'Failed', kind: 'mandate' }); save(); return false; }
+}
+function chargeDone(b) {
+  const ref = db.refs[b.referenceNumber]; if (!ref || !ref.charge || ref.done) return;
+  const ok = String(b.statusCode) === '0' && /success/i.test(b.statusMessage || 'SUCCESSFUL');
+  ref.done = true;
+  if (ok) { fund(ref.uid, ref.amount, 'fund-' + b.referenceNumber); autoPay.pending = true; }
+  else { receipt(ref.uid, { title: 'Direct debit failed', summary: `Your bank charge of ${ngn(ref.amount)} did not go through.`, amount: ref.amount, reference: b.referenceNumber, status: 'Failed', kind: 'mandate' }); save(); }
+}
+
 // Auto-pay: a member switches it on and their balance pays each deposit/round for them as soon as it is due.
 async function autoPay(cid) {
   const c = get(cid);
@@ -144,6 +176,7 @@ async function autoPay(cid) {
     const u = db.users[m.uid]; if (!u) continue;
     if (u.wallet < c.amount) {
       const key = `${kind}:${c.round}`;
+      if (u.mandate && u.mandate.status === 'APPROVED') { if (m.autoDebit !== key) { m.autoDebit = key; save(); await debitFor(m.uid, c.amount - u.wallet, c.name); if (u.wallet >= c.amount) { try { await payFromBalance(cid, m.id, m.uid, kind); receipt(m.uid, { title: 'Auto-paid', summary: `${ngn(c.amount)} was paid automatically for ${c.name} from your bank.`, amount: c.amount, reference: 'auto-' + id(4), circleName: c.name }); } catch (e) { console.error('auto-pay failed', e.message); } } } continue; }
       if (m.autoWarn !== key) { m.autoWarn = key; receipt(m.uid, { title: 'Auto-pay needs funds', summary: `Add ${ngn(c.amount - u.wallet)} to your balance so ${c.name} can be paid automatically.`, amount: 0, reference: 'warn-' + id(3), circleName: c.name, status: 'Action needed' }); save(); }
       continue;
     }
@@ -306,4 +339,4 @@ async function devPayOthers(cid, me, exceptId) {
   }
 }
 
-module.exports = { setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
+module.exports = { startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };

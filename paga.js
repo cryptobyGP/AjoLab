@@ -16,6 +16,7 @@ const SECRET_KEY = process.env.PAGA_SECRET_KEY || '';
 const HASH_KEY = process.env.PAGA_HMAC_KEY || '';
 const HASH_MODE = process.env.PAGA_HASH_MODE || 'sha';   // 'sha' = sha512(fields + hashKey). 'hmac' = HMAC-SHA512 of fields (the docs disagree, so this is switchable)
 const PUBLIC_URL = process.env.PUBLIC_URL || '';
+const CHECKOUT = process.env.PAGA_CHECKOUT_URL || (LIVE_ENV ? 'https://checkout.paga.com' : 'https://beta-checkout.paga.com');
 
 const clean = f => f.filter(x => x !== undefined && x !== null && x !== '').join('');
 function sign(fields) {
@@ -131,4 +132,33 @@ function verifyWebhook(rawBody) {
   return safeEq(b.hash, sign([b.notificationId, b.statusCode, b.externalReferenceNumber, b.state, ob]));
 }
 
-module.exports = { MODE, createAccount, verifyAccountCallback, banks, payout, verifyPayoutCallback, requestPayment, verifyWebhook };
+/* ---------- direct debit (Open banking mandate) ---------- */
+// 1. Customer approves a mandate on Paga's hosted page. 2. Paga calls back VERIFIED then APPROVED. 3. We charge it whenever money is due.
+async function setupMandate({ reference, accountReference, amountLimit, payerPhone, payerEmail, payerName }) {
+  if (MODE === 'mock') return { reference, checkoutUrl: `/mock-mandate?ref=${reference}` };
+  const body = { referenceNumber: reference, accountReference, amountLimit, paymentMethods: ['BANK_ACCOUNT_DIRECT_DEBIT'], callbackUrl: PUBLIC_URL + '/webhooks/paga-mandate', redirectUrl: PUBLIC_URL + '/?mandate=done',
+    sessionExpirySeconds: '3000', paymentExpirySeconds: '157680000', additionalProperties: { payerPhoneNumber: payerPhone || undefined, payerEmail: payerEmail || undefined, payerName: payerName || undefined } };
+  const res = await fetch(CHECKOUT + '/checkout/charge-process/start', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + Buffer.from(PUBLIC_KEY + ':' + SECRET_KEY).toString('base64') }, body: JSON.stringify(body) });
+  const text = await res.text(); let d = {}; try { d = JSON.parse(text); } catch {}
+  if (!res.ok || String(d.statusCode) !== '0' || !d.data) { console.error('Paga mandate', res.status, text.slice(0, 400)); throw new Error('Paga could not start direct debit: ' + (d.statusMessage || res.status)); }
+  return { reference, checkoutUrl: d.data.checkoutUrl };
+}
+async function chargeMandate({ reference, amount, accountReference }) {
+  if (MODE === 'mock') return { reference, accepted: true, mock: true };
+  const d = await collect('/chargeDebitMandate', { referenceNumber: reference, amount, accountReference }, [reference, String(amount), accountReference]);
+  if (d.statusCode !== undefined && String(d.statusCode) !== '0') throw new Error('Paga did not accept the charge: ' + (d.statusMessage || ''));
+  return { reference, accepted: true, raw: d };
+}
+// Mandate callback hash: statusCode + timeStamp + accountNumber + bankName + referenceNumber + mandateStatus + hashKey
+function verifyMandateCallback(b) {
+  if (MODE === 'mock') return true;
+  return safeEq(b.hash, sign([b.statusCode, b.timeStamp, b.accountNumber, b.bankName, b.referenceNumber, b.mandateStatus]));
+}
+// Charge callback hash: fields to be confirmed from Paga's docs (set PAGA_CHARGE_HASH_FIELDS as a comma list to override)
+const CHARGE_FIELDS = (process.env.PAGA_CHARGE_HASH_FIELDS || 'statusCode,timeStamp,accountNumber,bankName,referenceNumber,processStatusId').split(',');
+function verifyChargeCallback(b) {
+  if (MODE === 'mock') return true;
+  return safeEq(b.hash, sign(CHARGE_FIELDS.map(f => b[f])));
+}
+
+module.exports = { setupMandate, chargeMandate, verifyMandateCallback, verifyChargeCallback, MODE, createAccount, verifyAccountCallback, banks, payout, verifyPayoutCallback, requestPayment, verifyWebhook };

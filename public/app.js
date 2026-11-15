@@ -205,7 +205,7 @@ function circleRow(c){
 }
 function renderPortfolio(){
   if(!ME) return;
-  $("#pfBal").textContent=money(ME.wallet);
+  $("#pfBal").textContent=money(ME.wallet); renderMandate();
   $("#pfNote").textContent=ME.wallet>0?"Ready to send to your bank.":"Fund it from your Paga account number. Payouts land here too.";
   $("#pfWithdraw").disabled=!(ME.wallet>=100);
   $("#circlesBody").innerHTML=circles.length?'<ul style="padding:0">'+circles.map(circleRow).join("")+'</ul>':'<p class="empty">No circles yet. Start one or join with an invite link.</p>';
@@ -416,6 +416,11 @@ async function fundSheet(need){
   });
 }
 $("#pfFund").onclick=()=>fundSheet();
+function renderMandate(){ const b=$("#pfMandate"),t=$("#pfMandateTxt"); if(!b||!ME) return; const m=ME.mandate;
+  t.innerHTML=!m?PG+"Connect bank (direct debit)":m.status==="APPROVED"?PG+"Direct debit on"+(m.bank?" · "+esc(m.bank):""):m.status==="REJECTED"?PG+"Bank declined. Try again":PG+"Waiting for your bank...";
+  b.disabled=!!(m&&m.status==="APPROVED"); }
+$("#pfMandate").onclick=async()=>{ const m=ME&&ME.mandate; if(m&&m.status==="APPROVED") return;
+  try{ const r=await api("/api/mandate",{body:{}}); if(r.checkoutUrl) location.href=r.checkoutUrl; }catch(e){ toast(e.message); } };
 function pay(kind){
   const c=cur,me=c.members.find(m=>m.you),what=kind==="deposit"?"Deposit":"Round "+c.round+" payment";
   if(ME.wallet<c.amount) return fundSheet(c.amount-ME.wallet);
