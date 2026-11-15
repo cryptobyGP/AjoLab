@@ -205,7 +205,7 @@ function circleRow(c){
 }
 function renderPortfolio(){
   if(!ME) return;
-  $("#pfBal").textContent=money(ME.wallet); renderMandate();
+  $("#pfBal").textContent=money(ME.wallet); renderMandate(); renderWallet();
   $("#pfNote").textContent=ME.wallet>0?"Ready to send to your bank.":"Fund it from your Paga account number. Payouts land here too.";
   $("#pfWithdraw").disabled=!(ME.wallet>=100);
   $("#circlesBody").innerHTML=circles.length?'<ul style="padding:0">'+circles.map(circleRow).join("")+'</ul>':'<p class="empty">No circles yet. Start one or join with an invite link.</p>';
@@ -430,6 +430,21 @@ async function fundSheet(need){
   });
 }
 $("#pfFund").onclick=()=>fundSheet();
+/* ---------- Solana wallet (Phantom, devnet) ---------- */
+function renderWallet(){ const t=$("#pfWalletTxt"); if(!t||!ME) return; const w=ME.sol;
+  t.innerHTML=w?'<span style="color:var(--mint)">&#9679;</span> '+esc(w.address.slice(0,4))+"..."+esc(w.address.slice(-4))+' · devnet':"Connect Solana wallet"; }
+$("#pfWallet").onclick=async()=>{
+  if(ME&&ME.sol){ return sheet('<h2>Solana wallet</h2><p class="alede">Connected on <b>devnet</b> (test network).</p><div class="card"><div class="row"><span>Address</span><b style="font-size:12px;word-break:break-all;text-align:right">'+esc(ME.sol.address)+'</b></div></div><button class="pill outline block abtn" id="wOff">Disconnect wallet</button><button class="pill block abtn" data-close>Close</button>',()=>{ $("#wOff").onclick=async()=>{ try{ ME=await api("/api/wallet",{body:{unlink:true}}); closeSheet(); renderPortfolio(); toast("Wallet disconnected"); }catch(e){ toast(e.message); } }; }); }
+  const prov=(window.phantom&&window.phantom.solana&&window.phantom.solana.isPhantom)?window.phantom.solana:(window.solana&&window.solana.isPhantom?window.solana:null);
+  if(!prov){ const here=encodeURIComponent(location.origin); return sheet('<h2>Connect a Solana wallet</h2><p class="alede">No wallet found in this browser. Open AjoLabs inside the <b>Phantom</b> app browser to connect.</p><a class="pill block abtn" style="text-align:center;text-decoration:none" href="https://phantom.app/ul/browse/'+here+'?ref='+here+'">Open in Phantom</a><button class="pill outline block abtn" data-close>Close</button>'); }
+  try{
+    const r=await prov.connect(); const address=r.publicKey.toString();
+    const message="AjoLabs: link wallet "+address+" to my account at "+Date.now();
+    const sig=await prov.signMessage(new TextEncoder().encode(message),"utf8");
+    let bin=""; new Uint8Array(sig.signature||sig).forEach(b=>bin+=String.fromCharCode(b));
+    ME=await api("/api/wallet",{body:{address,message,signature:btoa(bin)}}); renderPortfolio(); seenSync(); toast("Wallet connected (devnet)");
+  }catch(e){ toast(/reject|denied|cancel/i.test(e.message||"")?"Wallet request cancelled":(e.message||"Could not connect wallet")); }
+};
 function renderMandate(){ const b=$("#pfMandate"),t=$("#pfMandateTxt"); if(!b||!ME) return; const m=ME.mandate;
   t.innerHTML=!m?PG+"Connect bank (direct debit)":m.status==="APPROVED"?PG+"Direct debit on"+(m.bank?" · "+esc(m.bank):""):m.status==="REJECTED"?PG+"Bank declined. Try again":PG+"Waiting for your bank...";
   b.disabled=!!(m&&m.status==="APPROVED"); }

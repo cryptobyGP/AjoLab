@@ -39,7 +39,7 @@ function receipt(uid, rc) {
   notify.email(u, rc); return rc;
 }
 const pub = u => ({ uid: u.uid, email: u.email, name: u.name, phone: u.phone, bank: u.bank, wallet: u.wallet, finished: u.finished, defaults: u.defaults,
-  tier: tierOf(u), account: u.account || null, mandate: u.mandate ? { status: u.mandate.status, bank: u.mandate.bank || null } : null, notes: u.notes, receipts: u.receipts });
+  tier: tierOf(u), account: u.account || null, sol: u.sol || null, mandate: u.mandate ? { status: u.mandate.status, bank: u.mandate.bank || null } : null, notes: u.notes, receipts: u.receipts });
 
 // Paga reports the final result of a bank transfer. If it failed, the money goes back to the user's balance.
 function payoutResult(reference, code) {
@@ -339,4 +339,21 @@ async function devPayOthers(cid, me, exceptId) {
   }
 }
 
-module.exports = { startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
+/* ---------- Solana wallet link (devnet). Proof of ownership = a signed message, checked with Node's built-in ed25519. ---------- */
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function b58decode(s) { let n = 0n; for (const ch of s) { const i = B58.indexOf(ch); if (i < 0) throw new Error('Bad wallet address'); n = n * 58n + BigInt(i); } let h = n.toString(16); if (h.length % 2) h = '0' + h; let b = Buffer.from(h, 'hex'); for (const ch of s) { if (ch !== '1') break; b = Buffer.concat([Buffer.from([0]), b]); } return b; }
+function linkWallet(uid, address, message, signatureB64) {
+  const u = getUser(uid), pub = b58decode(String(address));
+  if (pub.length !== 32) throw new Error('That is not a Solana address');
+  const m = String(message), t = Number((m.match(/at (\d{10,})/) || [])[1]);
+  if (!m.includes(address) || !m.includes('AjoLabs') || !(Math.abs(Date.now() - t) < 5 * 60000)) throw new Error('Wallet message expired. Try again.');
+  const key = require('crypto').createPublicKey({ key: Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), pub]), format: 'der', type: 'spki' });
+  if (!require('crypto').verify(null, Buffer.from(m), key, Buffer.from(String(signatureB64), 'base64'))) throw new Error('Wallet signature did not match');
+  const taken = Object.values(db.users).find(x => x.uid !== uid && x.sol && x.sol.address === address); if (taken) throw new Error('That wallet is linked to another account');
+  u.sol = { address, at: Date.now(), network: 'devnet' };
+  receipt(uid, { title: 'Wallet connected', summary: `Solana wallet ${address.slice(0, 4)}...${address.slice(-4)} (devnet) is linked to your account.`, reference: 'wal-' + id(4), kind: 'wallet' });
+  save(); return pub_(u);
+}
+function unlinkWallet(uid) { const u = getUser(uid); u.sol = null; save(); return pub_(u); }
+const pub_ = u => pub(u);
+module.exports = { linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };

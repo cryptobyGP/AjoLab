@@ -68,6 +68,7 @@ const server = http.createServer(async (req, res) => {
       if (m === 'POST' && p === '/api/me') return send(res, 200, circle.profile(uid, await json(req)));
       if (m === 'POST' && p === '/api/me/read') { const u = circle.getUser(uid); u.notes.forEach(n => (n.read = true)); require('./store').save(); return send(res, 200, circle.pub(u)); }
       if (m === 'POST' && p === '/api/checkout') return send(res, 200, await circle.startCheckout(uid, (await json(req)).amount));
+      if (m === 'POST' && p === '/api/wallet') { const b = await json(req); return send(res, 200, b.unlink ? circle.unlinkWallet(uid) : circle.linkWallet(uid, b.address, b.message, b.signature)); }
       if (m === 'POST' && p === '/api/mandate') { otp.verify(uid, 'mandate', (await json(req)).otp); return send(res, 200, await circle.startMandate(uid)); }
       if (m === 'POST' && p === '/api/account') return send(res, 200, await circle.account(uid));
       if ((paga.MODE === 'mock' || process.env.TEST_TOPUP === '1') && m === 'POST' && p === '/api/dev/simulate-fund') return send(res, 200, circle.fund(uid, (await json(req)).amount));
