@@ -52,6 +52,7 @@ function userByAccount(number) { return Object.values(db.users).find(u => u.acco
 // Each user's own Paga account number. Money sent to it lands in their AjoLabs balance.
 async function account(uid) {
   const u = getUser(uid);
+  if (paga.MODE !== 'mock' && u.account && /\(test\)/i.test(u.account.bank || '')) u.account = null;   // a fake account saved in test mode: make a real one
   if (!u.account) { if (!u.name) throw new Error('Add your name first'); u.account = await paga.createAccount({ uid, name: u.name, email: u.email, phone: u.phone }); save(); }
   return pub(u);
 }
@@ -87,6 +88,7 @@ async function withdraw(uid, amount) {
   if (!(amount >= 100)) throw new Error('Minimum transfer is ₦100');
   if (!u.bank) throw new Error('Add your bank account first');
   if (amount > u.wallet) throw new Error('Not enough in your balance');
+  if (paga.MODE !== 'mock' && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(u.bank.code || '')) throw new Error('Please choose your bank again (Account > Bank > Change). It was saved before Paga went live.');
   const reference = 'wd-' + id(5); u.wallet -= amount; db.refs[reference] = { withdraw: true, uid, amount, refunded: false }; save();
   try {
     const r = await paga.payout({ reference, amount, bankCode: u.bank.code, accountNumber: u.bank.account, name: u.name || u.email });
