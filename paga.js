@@ -76,7 +76,11 @@ async function createAccountLive({ uid, name, email, phone }) {
 // A deposit into a user's account. Hash: statusCode + accountNumber + amount + clearingFeeAmount + transferFeeAmount + hashKey
 function verifyAccountCallback(b) {
   if (MODE === 'mock') return true;
-  return safeEq(b.hash, sign([b.statusCode, b.accountNumber, b.amount, b.clearingFeeAmount, b.transferFeeAmount]));
+  // Paga may print numbers as "2000", "2000.0" or "2000.00" in the hash, so accept each spelling of the same value.
+  const num = v => { if (v == null || v === '') return [v]; const n = Number(v); return Number.isFinite(n) ? [String(v), String(n), n.toFixed(2)] : [v]; };
+  for (const a of num(b.amount)) for (const c of num(b.clearingFeeAmount)) for (const t of num(b.transferFeeAmount))
+    if (safeEq(b.hash, sign([b.statusCode, b.accountNumber, a, c, t]))) return true;
+  return false;
 }
 
 /* ---------- banks and payouts ---------- */

@@ -45,7 +45,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (m === 'POST' && p === '/webhooks/paga-account') {                // a transfer arrived in a user's Paga account
       const b = await json(req);
-      if (!paga.verifyAccountCallback(b)) return send(res, 401, { error: 'bad signature' });
+      const okSig = paga.verifyAccountCallback(b);
+      console.error('Paga account callback', okSig ? 'signature ok' : 'BAD SIGNATURE', JSON.stringify({ ...b, hash: undefined }).slice(0, 400));
+      if (!okSig) return send(res, 401, { error: 'bad signature' });
       const u = circle.userByAccount(String(b.accountNumber));
       if (u && Number(b.statusCode) === 0) circle.fund(u.uid, b.amount, 'fund-' + (b.transactionReference || b.fundingPaymentReference));
       return send(res, 200, { status: 'SUCCESS' });
