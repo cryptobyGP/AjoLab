@@ -4,7 +4,8 @@ const KEY = process.env.RESEND_API_KEY || '';
 const BREVO = process.env.BREVO_API_KEY || '';                       // Brevo (free, can email anyone). Needs BREVO_SENDER = an email verified in Brevo.
 const BREVO_SENDER = process.env.BREVO_SENDER || '';
 const BREVO_NAME = process.env.BREVO_SENDER_NAME || 'AjoLabs';
-const ON = !!(BREVO && BREVO_SENDER) || !!KEY;
+const GAS_URL = process.env.GAS_URL || '', GAS_SECRET = process.env.GAS_SECRET || '';   // Google Apps Script relay: sends from your Gmail to anyone
+const ON = !!(GAS_URL && GAS_SECRET) || !!(BREVO && BREVO_SENDER) || !!KEY;
 const FROM = process.env.EMAIL_FROM || 'AjoLabs <onboarding@resend.dev>';
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // Resend's free plan allows about 2 emails per second. Send one at a time and retry if it says "too many requests".
@@ -13,11 +14,14 @@ function sendMail(payload, label) {
   chain = chain.then(async () => {
     for (let i = 0; i < 4; i++) {
       try {
-        const r = (BREVO && BREVO_SENDER)
+        const r = (GAS_URL && GAS_SECRET)
+          ? await fetch(GAS_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ secret: GAS_SECRET, to: [].concat(payload.to)[0], subject: payload.subject, html: payload.html, text: payload.text, name: 'AjoLabs' }) })
+          : (BREVO && BREVO_SENDER)
           ? await fetch('https://api.brevo.com/v3/smtp/email', { method: 'POST', headers: { 'api-key': BREVO, 'Content-Type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ sender: { name: BREVO_NAME, email: BREVO_SENDER }, to: payload.to.map(email => ({ email })), subject: payload.subject, htmlContent: payload.html, textContent: payload.text }) })
           : await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (r.ok) { await new Promise(z => setTimeout(z, 600)); return true; }
         const body = await r.text();
+        if (r.ok && GAS_URL && GAS_SECRET && !/"ok"\s*:\s*true/.test(body)) { console.error(label + ' failed (Apps Script)', body.slice(0, 200)); return false; }
+        if (r.ok) { await new Promise(z => setTimeout(z, 600)); return true; }
         if (r.status === 429 && i < 3) { await new Promise(z => setTimeout(z, 1200 * (i + 1))); continue; }
         console.error(label + ' failed', r.status, body.slice(0, 300)); return false;
       } catch (e) { console.error(label + ' failed', e.message); return false; }
