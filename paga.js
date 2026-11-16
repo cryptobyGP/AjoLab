@@ -140,7 +140,12 @@ async function requestPayment({ reference, amount, payerName, payerPhone, payerE
   ];
   let last;
   for (const body of bodies) {
-    try { const d = await collect('/paymentRequest', body, hf); return { reference, raw: d, checkoutUrl: d.redirectUrl || d.checkoutUrl || d.paymentUrl || (d.data && (d.data.redirectUrl || d.data.checkoutUrl || d.data.paymentUrl)) || null }; }
+    try {
+      const d = await collect('/paymentRequest', body, hf);
+      console.error('Paga paymentRequest reply', JSON.stringify(d).slice(0, 700));
+      const findUrl = o => { if (!o || typeof o !== 'object') return null; for (const v of Object.values(o)) { if (typeof v === 'string' && /^https?:\/\//.test(v)) return v; const r = findUrl(v); if (r) return r; } return null; };
+      return { reference, raw: d, checkoutUrl: d.redirectUrl || d.checkoutUrl || d.paymentUrl || findUrl(d) };
+    }
     catch (e) { last = e; if (e.rateLimited || !/\((500|400)\)/.test(e.message)) break; }
   }
   // Last try: Paga's hosted checkout session (same service the direct debit page uses), HTTP Basic, no hash header.
