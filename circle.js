@@ -39,7 +39,7 @@ function receipt(uid, rc) {
   notify.email(u, rc); return rc;
 }
 const pub = u => ({ uid: u.uid, email: u.email, name: u.name, phone: u.phone, bank: u.bank, wallet: u.wallet, finished: u.finished, defaults: u.defaults,
-  tier: tierOf(u), account: u.account || null, sol: u.sol || null, mandate: u.mandate ? { status: u.mandate.status, bank: u.mandate.bank || null } : null, notes: u.notes, receipts: u.receipts });
+  tier: tierOf(u), account: u.account || null, sol: u.sol || null, mandate: freshMandate(u) ? { status: u.mandate.status, bank: u.mandate.bank || null } : null, notes: u.notes, receipts: u.receipts });
 
 // Paga reports the final result of a bank transfer. If it failed, the money goes back to the user's balance.
 function payoutResult(reference, code) {
@@ -47,6 +47,8 @@ function payoutResult(reference, code) {
   r.refunded = true; const u = getUser(r.uid); u.wallet += r.amount;
   receipt(r.uid, { title: 'Transfer failed', summary: `Your ${ngn(r.amount)} transfer to the bank did not go through. The money is back in your balance.`, amount: r.amount, reference, status: 'Failed' }); save();
 }
+// A bank connected in the other mode (simulation vs live) is not real here: forget it so the user can connect again.
+function freshMandate(u) { if (u.mandate && (u.mandate.mode || 'mock') !== (paga.MODE === 'mock' ? 'mock' : 'live')) { delete u.mandate; } return u.mandate; }
 function userByAccount(number) { return Object.values(db.users).find(u => u.account && u.account.number === number); }
 
 // Each user's own Paga account number. Money sent to it lands in their AjoLabs balance.
@@ -138,10 +140,10 @@ const deadline = c => c.round === 1 ? c.startAt + FUND_WINDOW : c.cycleStartAt +
 const graceEnd = c => deadline(c) + (c.round === 1 ? 0 : GRACE);
 /* ---------- direct debit: connect a bank once, then AjoLabs tops up the balance from it when a payment is due ---------- */
 async function startMandate(uid) {
-  const u = getUser(uid);
+  const u = getUser(uid); freshMandate(u);
   if (u.mandate && u.mandate.status === 'APPROVED') throw new Error('Your bank is already connected');
   const reference = 'DD-' + id(6), accountReference = ('AJODD' + id(8)).toUpperCase();
-  u.mandate = { ref: reference, accountReference, status: 'PENDING' }; db.refs[reference] = { mandate: true, uid };
+  u.mandate = { ref: reference, accountReference, status: 'PENDING', mode: paga.MODE === 'mock' ? 'mock' : 'live' }; db.refs[reference] = { mandate: true, uid };
   const r = await paga.setupMandate({ reference, accountReference, amountLimit: 500000, payerPhone: u.phone, payerEmail: u.email && !u.email.startsWith('demo:') ? u.email : undefined, payerName: u.name });
   save(); return r;
 }
@@ -155,7 +157,7 @@ function mandateEvent(b) {       // callback from Paga: VERIFIED, then APPROVED 
 }
 // Charge the connected bank for the shortfall. Paga confirms later by callback; the balance is credited then.
 async function debitFor(uid, amount, why) {
-  const u = getUser(uid); if (!u.mandate || u.mandate.status !== 'APPROVED') return false;
+  const u = getUser(uid); if (!freshMandate(u) || u.mandate.status !== 'APPROVED') return false;
   const reference = 'CHG-' + id(6); db.refs[reference] = { charge: true, uid, amount, done: false };
   try { const r = await paga.chargeMandate({ reference, amount, accountReference: u.mandate.accountReference }); save(); if (r.mock) chargeDone({ referenceNumber: reference, statusCode: '0', statusMessage: 'SUCCESSFUL' }); return true; }
   catch (e) { delete db.refs[reference]; console.error('debit failed', e.message); receipt(uid, { title: 'Direct debit failed', summary: `We could not charge your bank for ${why}: ${e.message}`, amount, reference, status: 'Failed', kind: 'mandate' }); save(); return false; }
