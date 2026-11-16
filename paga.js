@@ -27,14 +27,14 @@ const sha = s => crypto.createHash('sha512').update(s).digest('hex');
 const safeEq = (a, b) => typeof a === 'string' && a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
 async function collect(path, body, hashFields, hashOverride) {
-  const res = await fetch(COLLECT + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + Buffer.from(PUBLIC_KEY + ':' + SECRET_KEY).toString('base64'), hash: hashOverride || sign(hashFields) }, body: JSON.stringify(body) });
+  const res = await fetch(COLLECT + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'Accept-Language': 'en', Authorization: 'Basic ' + Buffer.from(PUBLIC_KEY + ':' + SECRET_KEY).toString('base64'), hash: hashOverride || sign(hashFields) }, body: JSON.stringify(body) });
   const text = await res.text(); let data = {}; try { data = JSON.parse(text); } catch {}
   if (res.status === 429) { console.error('Paga rate limit', path); const e = new Error('Paga is busy right now. Wait a minute and try again.'); e.rateLimited = true; throw e; }
   if (!res.ok) { console.error('Paga', path, res.status, text.slice(0, 400)); throw new Error(`Paga ${path} failed (${res.status}) ${data.statusMessage || data.message || text.slice(0, 160)}`.trim()); }
   return data;
 }
 async function business(path, body, hashFields) {
-  const res = await fetch(BUSINESS + path, { method: 'POST', headers: { 'Content-Type': 'application/json', principal: PUBLIC_KEY, credentials: SECRET_KEY, hash: sha(clean(hashFields) + HASH_KEY) }, body: JSON.stringify(body) });
+  const res = await fetch(BUSINESS + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'Accept-Language': 'en', principal: PUBLIC_KEY, credentials: SECRET_KEY, hash: sha(clean(hashFields) + HASH_KEY) }, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`Paga ${path} failed (${res.status}) ${data.message || ''}`.trim());
   return data;
@@ -107,19 +107,8 @@ async function payout({ reference, amount, bankCode, accountNumber, name, phone,
   const v = await business('/validateDepositToBank', base, f);
   console.error('Paga validateDepositToBank', JSON.stringify(v).slice(0, 300));
   if (Number(v.responseCode) !== 0) throw new Error('Paga could not validate that bank account' + (v.message ? ': ' + v.message : ''));
-  // Paga's sandbox sometimes answers 500 to one body shape, so try the docs' exact example shape first, then variations.
-  const amt2 = Number(amount).toFixed(2), f2 = [reference, amt2, bankCode, accountNumber];
-  const tries = [
-    [{ referenceNumber: reference, amount: amt2, currency: 'NGN', destinationBankUUID: bankCode, destinationBankAccountNumber: accountNumber, remarks: 'AjoLabs transfer', statusCallbackUrl: PUBLIC_URL + '/webhooks/paga-payout' }, f2],
-    [{ referenceNumber: reference, amount: amt2, destinationBankUUID: bankCode, destinationBankAccountNumber: accountNumber }, f2],
-    [{ ...base, recipientName: name, suppressRecipientMessage: 'true', remarks: 'AjoLabs transfer', statusCallbackUrl: PUBLIC_URL + '/webhooks/paga-payout' }, f]
-  ];
-  let d;
-  for (const [body, hf] of tries) {
-    d = await business('/depositToBank', body, hf);
-    console.error('Paga depositToBank', JSON.stringify(d).slice(0, 300));
-    if (Number(d.responseCode) === 0 || Number(d.responseCode) !== -1) break;
-  }
+  const d = await business('/depositToBank', { ...base, recipientName: name, remarks: 'AjoLabs transfer', statusCallbackUrl: PUBLIC_URL + '/webhooks/paga-payout' }, f);
+  console.error('Paga depositToBank', JSON.stringify(d).slice(0, 300));
   if (Number(d.responseCode) !== 0) throw new Error('Paga did not accept the transfer' + (d.message ? ': ' + d.message : ''));
   return { reference, status: 'SUCCESS', fee: d.fee, raw: d };
 }
@@ -150,7 +139,7 @@ async function requestPayment({ reference, amount, payerName, payerPhone, payerE
   // Last try: Paga's hosted checkout session (same service the direct debit page uses), HTTP Basic, no hash header.
   if (last && /\(500\)/.test(last.message)) {
     try {
-      const res = await fetch(CHECKOUT + '/checkout/charge-process/start', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + Buffer.from(PUBLIC_KEY + ':' + SECRET_KEY).toString('base64') },
+      const res = await fetch(CHECKOUT + '/checkout/charge-process/start', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'Accept-Language': 'en', Authorization: 'Basic ' + Buffer.from(PUBLIC_KEY + ':' + SECRET_KEY).toString('base64') },
         body: JSON.stringify({ referenceNumber: reference, amount: amt, currency: 'NGN', paymentMethods: ['BANK_TRANSFER', 'CARD'], callbackUrl: callBackUrl, redirectUrl: PUBLIC_URL + '/?funded=1', sessionExpirySeconds: '3000', paymentExpirySeconds: '3000',
           additionalProperties: { payerPhoneNumber: payer.phoneNumber, payerEmail: payer.email, payerName: payer.name } }) });
       const text = await res.text(); let d = {}; try { d = JSON.parse(text); } catch {}
@@ -174,7 +163,7 @@ async function setupMandate({ reference, accountReference, amountLimit, payerPho
   if (MODE === 'mock') return { reference, checkoutUrl: `/mock-mandate?ref=${reference}` };
   const body = { referenceNumber: reference, accountReference, amountLimit, paymentMethods: ['BANK_ACCOUNT_DIRECT_DEBIT'], callbackUrl: PUBLIC_URL + '/webhooks/paga-mandate', redirectUrl: PUBLIC_URL + '/?mandate=done',
     sessionExpirySeconds: '3000', paymentExpirySeconds: '157680000', additionalProperties: { payerPhoneNumber: payerPhone || undefined, payerEmail: payerEmail || undefined, payerName: payerName || undefined } };
-  const res = await fetch(CHECKOUT + '/checkout/charge-process/start', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Basic ' + Buffer.from(PUBLIC_KEY + ':' + SECRET_KEY).toString('base64') }, body: JSON.stringify(body) });
+  const res = await fetch(CHECKOUT + '/checkout/charge-process/start', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'Accept-Language': 'en', Authorization: 'Basic ' + Buffer.from(PUBLIC_KEY + ':' + SECRET_KEY).toString('base64') }, body: JSON.stringify(body) });
   const text = await res.text(); let d = {}; try { d = JSON.parse(text); } catch {}
   if (!res.ok || String(d.statusCode) !== '0' || !d.data) { console.error('Paga mandate', res.status, text.slice(0, 400)); throw new Error('Paga could not start direct debit: ' + (d.statusMessage || res.status)); }
   return { reference, checkoutUrl: d.data.checkoutUrl };
