@@ -127,14 +127,17 @@ async function requestPayment({ reference, amount, payerName, payerPhone, payerE
   const hf = [reference, amt, 'NGN', payer.phoneNumber, payer.email];
   const callBackUrl = PUBLIC_URL + '/webhooks/paga';
   // Try the full request first. If Paga can't read it (500 system error), retry once with the smallest request the docs show.
+  // Paga rejects a request unless payerCollectionFeeShare + payeeCollectionFeeShare = 1.0.
+  const shares = { payerCollectionFeeShare: 1.0, payeeCollectionFeeShare: 0.0 };
   const bodies = [
-    { referenceNumber: reference, amount: amt, currency: 'NGN', payer, payee: { name: 'AjoLabs' }, paymentMethods: ['BANK_TRANSFER'], callBackUrl },
-    { referenceNumber: reference, amount: amt, currency: 'NGN', payer, callBackUrl }
+    { referenceNumber: reference, amount: amt, currency: 'NGN', payer, payee: { name: 'AjoLabs' }, ...shares, paymentMethods: ['BANK_TRANSFER'], callBackUrl },
+    { referenceNumber: reference, amount: amt, currency: 'NGN', payer, ...shares, callBackUrl },
+    { referenceNumber: reference, amount: amt, currency: 'NGN', payer, payee: { name: 'AjoLabs', collectionFeeShare: 0.0 }, callBackUrl }
   ];
   let last;
   for (const body of bodies) {
     try { const d = await collect('/paymentRequest', body, hf); return { reference, raw: d, checkoutUrl: d.redirectUrl || d.checkoutUrl || d.paymentUrl || (d.data && (d.data.redirectUrl || d.data.checkoutUrl || d.data.paymentUrl)) || null }; }
-    catch (e) { last = e; if (e.rateLimited || !/\(500\)/.test(e.message)) break; }
+    catch (e) { last = e; if (e.rateLimited || !/\((500|400)\)/.test(e.message)) break; }
   }
   // Last try: Paga's hosted checkout session (same service the direct debit page uses), HTTP Basic, no hash header.
   if (last && /\(500\)/.test(last.message)) {
