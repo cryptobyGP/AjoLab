@@ -49,7 +49,11 @@ const server = http.createServer(async (req, res) => {
       console.error('Paga account callback', okSig ? 'signature ok' : 'BAD SIGNATURE', JSON.stringify({ ...b, hash: undefined }).slice(0, 400));
       if (!okSig) return send(res, 401, { error: 'bad signature' });
       const u = circle.userByAccount(String(b.accountNumber));
-      if (u && Number(b.statusCode) === 0) circle.fund(u.uid, b.amount, 'fund-' + (b.transactionReference || b.fundingPaymentReference));
+      if (u && Number(b.statusCode) === 0) {
+        const amount = Number(String(b.amount).replace(/[^0-9.]/g, ''));   // Paga writes "5,000.00"
+        try { circle.fund(u.uid, amount, 'fund-' + (b.transactionReference || b.fundingPaymentReference)); console.error('Paga account funded', u.uid, amount); }
+        catch (e) { console.error('Paga account fund failed', e.message); }
+      } else console.error('Paga account callback: no user for', b.accountNumber);
       return send(res, 200, { status: 'SUCCESS' });
     }
     if (m === 'POST' && p === '/webhooks/paga-payout') {                 // Paga reports the result of a bank transfer
