@@ -364,5 +364,7 @@
 
 <script src="/ui.js"></script>
 <script src="/app.js"></script>
+<div class="help" id="help"><div class="helppop" id="helpPop" hidden><b>Need help?</b><p>Chat with the AjoLabs team and community.</p><a href="https://t.me/AjoLabsHQ" target="_blank" rel="noopener">Telegram community</a><a href="https://x.com/AjoLabsHQ" target="_blank" rel="noopener">Message us on 𝕏</a><a href="/how-it-works.html">How it works</a></div><button class="helpbtn" id="helpBtn" aria-label="Help and support" aria-expanded="false"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13v-1a8 8 0 0 1 16 0v1"/><rect x="3" y="13" width="4" height="6" rx="1.5"/><rect x="17" y="13" width="4" height="6" rx="1.5"/><path d="M19 19c0 1.7-2 2.5-5 2.5"/></svg></button></div>
+<script>(function(){var b=document.getElementById('helpBtn'),p=document.getElementById('helpPop');if(!b)return;b.addEventListener('click',function(e){e.stopPropagation();var o=p.hidden;p.hidden=!o;b.setAttribute('aria-expanded',o)});document.addEventListener('click',function(e){if(!p.hidden&&!p.contains(e.target)){p.hidden=true;b.setAttribute('aria-expanded',false)}})})()</script>
 </body>
 </html>
