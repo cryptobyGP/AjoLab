@@ -10,21 +10,25 @@ const FROM = process.env.EMAIL_FROM || 'AjoLabs <onboarding@resend.dev>';
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // Resend's free plan allows about 2 emails per second. Send one at a time and retry if it says "too many requests".
 let chain = Promise.resolve();
+// Providers to try, in order. If one fails (for example the Apps Script relay is misconfigured), the next one still sends the email.
+function providers(payload) {
+  const list = [];
+  if (GAS_URL && GAS_SECRET) list.push(['Apps Script', () => fetch(GAS_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ secret: GAS_SECRET, to: [].concat(payload.to)[0], subject: payload.subject, html: payload.html, text: payload.text, name: 'AjoLabs' }) }), body => /"ok"\s*:\s*true/.test(body)]);
+  if (BREVO && BREVO_SENDER) list.push(['Brevo', () => fetch('https://api.brevo.com/v3/smtp/email', { method: 'POST', headers: { 'api-key': BREVO, 'Content-Type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ sender: { name: BREVO_NAME, email: BREVO_SENDER }, to: [].concat(payload.to).map(email => ({ email })), subject: payload.subject, htmlContent: payload.html, textContent: payload.text }) }), () => true]);
+  if (KEY) list.push(['Resend', () => fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }), () => true]);
+  return list;
+}
 function sendMail(payload, label) {
   chain = chain.then(async () => {
-    for (let i = 0; i < 4; i++) {
-      try {
-        const r = (GAS_URL && GAS_SECRET)
-          ? await fetch(GAS_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ secret: GAS_SECRET, to: [].concat(payload.to)[0], subject: payload.subject, html: payload.html, text: payload.text, name: 'AjoLabs' }) })
-          : (BREVO && BREVO_SENDER)
-          ? await fetch('https://api.brevo.com/v3/smtp/email', { method: 'POST', headers: { 'api-key': BREVO, 'Content-Type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ sender: { name: BREVO_NAME, email: BREVO_SENDER }, to: payload.to.map(email => ({ email })), subject: payload.subject, htmlContent: payload.html, textContent: payload.text }) })
-          : await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        const body = await r.text();
-        if (r.ok && GAS_URL && GAS_SECRET && !/"ok"\s*:\s*true/.test(body)) { console.error(label + ' failed (Apps Script)', body.slice(0, 200)); return false; }
-        if (r.ok) { await new Promise(z => setTimeout(z, 600)); return true; }
-        if (r.status === 429 && i < 3) { await new Promise(z => setTimeout(z, 1200 * (i + 1))); continue; }
-        console.error(label + ' failed', r.status, body.slice(0, 300)); return false;
-      } catch (e) { console.error(label + ' failed', e.message); return false; }
+    for (const [name, call, okBody] of providers(payload)) {
+      for (let i = 0; i < 3; i++) {
+        try {
+          const r = await call(), body = await r.text();
+          if (r.ok && okBody(body)) { await new Promise(z => setTimeout(z, 600)); return true; }
+          if (r.status === 429 && i < 2) { await new Promise(z => setTimeout(z, 1200 * (i + 1))); continue; }
+          console.error(label + ' failed (' + name + ')', r.status, body.slice(0, 160)); break;
+        } catch (e) { console.error(label + ' failed (' + name + ')', e.message); break; }
+      }
     }
     return false;
   }).catch(() => false);
