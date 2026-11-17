@@ -409,7 +409,7 @@ function wireDemo(){
 }
 async function checkout(){
   const b=$("#cPay"); b.disabled=true; b.textContent="Opening Paga...";
-  try{ const r=await api("/api/checkout",{body:{amount:+$("#cAmt").value}}); if(r.checkoutUrl) location.href=r.checkoutUrl; else { toast("Paga sent no checkout link yet"); b.disabled=false; b.textContent="Pay with Paga Checkout"; } }
+  try{ const r=await api("/api/checkout",{body:{amount:+$("#cAmt").value}}); if(r.checkoutUrl) location.href=r.checkoutUrl; else { sheet('<h2>Check your email or SMS</h2><p class="alede">Paga has sent your payment link. Open it, pay, and your balance updates here when the payment is confirmed. It can take a minute.</p><p class="alede" style="margin-top:10px">Not there? Check your spam folder.</p>'); b.disabled=false; b.textContent="Pay with Paga Checkout"; } }
   catch(e){ toast(e.message); b.disabled=false; b.textContent="Pay with Paga Checkout"; }
 }
 async function fundSheet(need){
