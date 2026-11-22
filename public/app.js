@@ -266,7 +266,7 @@ function askOtp(purpose){
   return new Promise(async res=>{
     let r; try{ r=await api("/api/otp/send",{body:{purpose}}); }catch(e){ toast(e.message); return res(null); }
     const where=r.sent?"We emailed a 6-digit code to <b>"+esc(r.email)+"</b>.":"Test mode: your code is <b>"+esc(r.testCode||"")+"</b>.";
-    sheet('<h2>Enter your code</h2><p class="alede">'+where+' It expires in 10 minutes.</p><input id="oCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" style="letter-spacing:6px;font-size:22px;text-align:center"><div id="oErr" style="color:var(--bad);font-size:14px;margin-top:10px"></div><button class="pill block abtn" id="oGo">Confirm</button><button class="pill outline block abtn" id="oCancel">Cancel</button>',()=>{
+    sheet('<h2>Enter your code</h2><p class="alede">'+where+' It expires in 10 minutes. If you do not see it, check Spam.</p><input id="oCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" style="letter-spacing:6px;font-size:22px;text-align:center"><div id="oErr" style="color:var(--bad);font-size:14px;margin-top:10px"></div><button class="pill block abtn" id="oGo">Confirm</button><button class="pill outline block abtn" id="oCancel">Cancel</button>',()=>{
       const inp=$("#oCode"); inp.focus();
       const go=()=>{ const v=inp.value.trim(); if(!/^\d{6}$/.test(v)) return $("#oErr").textContent="Enter the 6 digits"; closeSheet(); res(v); };
       $("#oGo").onclick=go; inp.addEventListener("keydown",e=>{ if(e.key==="Enter") go(); }); $("#oCancel").onclick=()=>{ closeSheet(); res(null); };
@@ -359,7 +359,7 @@ function renderPanel(){
   const n=c.maxMembers,pot=c.amount*n,me=c.members.find(m=>m.you),paidN=c.members.filter(m=>m.paid).length;
   if(cTab==="pay"){
     let h='<div class="tiles"><div class="tile"><div class="k">'+(c.status==="active"?"Pot this round":"Pot per round")+'</div><div class="v">'+short(pot)+'</div></div><div class="tile"><div class="k">'+(c.status==="active"?"Paid":"Seats")+'</div><div class="v">'+(c.status==="active"?paidN+"/"+n:c.members.length+"/"+n)+'</div></div><div class="tile"><div class="k">Receives</div><div class="v">'+esc(c.status==="active"?c.receiver:"-")+'</div></div></div>';
-    if(c.status==="filling") h+='<button class="pill block abtn" id="shareBtn">Copy private invite link</button>'+(MOCK?'<button class="pill outline block abtn" id="fillBtn">Demo: fill the seats</button>':"");
+    if(c.status==="filling") h+='<button class="pill block abtn" id="waBtn">Share on WhatsApp</button><button class="pill outline block abtn" id="shareBtn">Copy private invite link</button>'+(MOCK?'<button class="pill outline block abtn" id="fillBtn">Demo: fill the seats</button>':"");
     else if(c.status==="deposits"){ h+='<button class="pill block abtn" id="depBtn" '+(me.deposit?"disabled":"")+'>'+(me.deposit?"Your deposit is paid":"Pay "+money(c.amount)+" deposit")+'</button>'+(MOCK?'<button class="pill outline block abtn sm" id="othersBtn">Demo: others pay</button>':""); }
     else if(c.status==="completed") h+='<button class="pill block abtn" data-page="create">Start a new circle</button>';
     else {
@@ -394,6 +394,7 @@ let MOCK=false;
 async function act(fn,msg){ try{ await fn(); await refresh(); if(msg) toast(msg); renderCircle(); }catch(e){ toast(e.message); } }
 function bindPay(){
   const c=cur,B=id=>$("#"+id);
+  if(B("waBtn")) B("waBtn").onclick=()=>{ const u=location.origin+"/?join="+c.id; const m='Join my Ajo circle "'+c.name+'" on AjoLabs. Private and protected, with payments through Paga: '+u; window.open("https://wa.me/?text="+encodeURIComponent(m),"_blank","noopener"); };
   if(B("shareBtn")) B("shareBtn").onclick=()=>{ const u=location.origin+"/?join="+c.id; (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast("Invite link copied. Only people with it can join."),()=>sheet('<h2>Invite link</h2><p class="alede">Copy this link and send it.</p><div class="card" style="word-break:break-all">'+esc(u)+'</div><button class="pill block abtn" data-close>Done</button>')); };
   if(B("fillBtn")) B("fillBtn").onclick=()=>act(()=>api("/api/dev/fill",{body:{id:c.id}}),"Sample members joined");
   if(B("depBtn")) B("depBtn").onclick=()=>pay("deposit");
