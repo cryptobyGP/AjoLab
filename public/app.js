@@ -224,6 +224,9 @@ function renderPortfolio(){
   $("#noteBody").innerHTML=notes.length?notes.slice(0,6).map(n=>'<div class="nrow '+(n.read?"":"new")+'" data-rc="'+n.receipt+'"><b>'+esc(n.title)+'</b><small>'+esc(n.text)+' '+ago(n.at)+'</small></div>').join(""):'<p class="empty">Nothing yet. You will see payments and payouts here.</p>';
   const rcs=ME.receipts||[];
   $("#rcBody").innerHTML=rcs.length?rcs.slice(0,8).map(r=>'<div class="nrow" data-rc="'+r.id+'"><div class="row"><b>'+esc(r.title)+'</b><span>'+(r.amount!=null?money(r.amount):"")+'</span></div><small>'+(r.circleName?esc(r.circleName)+", ":"")+ago(r.at)+'</small></div>').join(""):'<p class="empty">Receipts for every payment and transfer will show here.</p>';
+  const aj=ME.ajo||{score:null,level:"New",onTime:0,late:0};
+  $("#recScore").textContent=aj.score==null?"New":aj.score+" · "+aj.level;
+  $("#recScoreNote").textContent=aj.score==null?"Builds as you pay on time":aj.onTime+" on time, "+aj.late+" late";
   $("#recFin").textContent=ME.finished; $("#recDef").textContent=ME.defaults; $("#recHb").textContent=ME.tier.pct+"%";
   $("#acctBody").innerHTML='<ul style="padding:0"><li class="li"><span>Name<small>'+esc(ME.name||"-")+'</small></span></li><li class="li"><span>Email<small>'+esc(ME.email&&!ME.email.startsWith("demo:")?ME.email:"-")+'</small></span></li><li class="li"><span>Phone<small>'+esc(ME.phone||"-")+'</small></span></li><li class="li"><span>Bank<small>'+(ME.bank?esc(ME.bank.name)+" ending "+esc(ME.bank.account.slice(-4)):"Not added yet")+'</small></span><button class="pill outline sm" id="editBank" style="padding:8px 14px;font-size:14px">'+(ME.bank?"Change":"Add")+'</button></li></ul>';
   const eb=$("#editBank"); if(eb) eb.onclick=()=>bankSheet();
@@ -375,7 +378,7 @@ function renderPanel(){
     el.innerHTML='<div class="pcard" style="margin:0"><div class="pb" style="padding:8px 22px"><ul style="padding:0">'+c.members.map(m=>{
       let tags=""; if(c.status==="active"){ tags+=m.paid?'<span class="ctag paid">Paid</span>':'<span class="ctag wait">Waiting</span>'; if(m.slot===c.round) tags='<span class="ctag next">Receives</span>'+tags; }
       if(m.defaulted) tags+='<span class="ctag late">Default mark</span>'; else if(c.status==="deposits"&&m.deposit) tags+='<span class="ctag paid">Deposit in</span>';
-      return '<li class="li"><span>'+m.slot+'. '+esc(m.name)+(m.you?" (you)":"")+'<small>'+esc(m.tierLabel)+', holdback '+m.tierPct+'%</small></span><span class="tags">'+tags+'</span></li>'; }).join("")+'</ul></div></div>';
+      return '<li class="li"><span>'+m.slot+'. '+esc(m.name)+(m.you?" (you)":"")+'<small>'+(m.ajoLevel&&m.ajoLevel!=="New"?esc(m.ajoLevel)+" · ":"")+esc(m.tierLabel)+', holdback '+m.tierPct+'%</small></span><span class="tags">'+tags+'</span></li>'; }).join("")+'</ul></div></div>';
   } else if(cTab==="payouts"){
     const fee=Math.floor(pot*FEE); let rows="";
     for(let q=1;q<=n;q++){ const m=c.members[q-1],done=c.status==="completed"||(c.status==="active"&&q<c.round),now=c.status==="active"&&q===c.round;

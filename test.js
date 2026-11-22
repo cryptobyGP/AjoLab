@@ -60,6 +60,14 @@ async function fill() {
   assert.ok(logs(c).some(x => /Tunde missed round 1.*₦5,000 from deposit.*Default mark/.test(x)));
   assert.ok(circle.status(id2).members.find(x => x.name === 'Tunde').tierLabel.includes('default mark'));
 
+  // 3. Ajo Score: on-time payments are recorded, a missed one is a default mark
+  const tu = circle.getUser(U(1)), other = circle.getUser(U(2));   // Tunde missed; Amina paid every round on time
+  assert.equal(circle.pub(tu).ajo.missed, 1, 'missed payment counted once');
+  assert.ok(circle.pub(other).ajo.onTime >= 1, 'on-time payment recorded');
+  assert.equal(circle.pub(other).ajo.late, 0);
+  assert.ok(circle.pub(tu).ajo.score < circle.pub(other).ajo.score, 'defaulter scores lower');
+  assert.ok(circle.status(id2).members.every(x => typeof x.ajoLevel === 'string'));
+
   console.log(logs(c).map(x => '- ' + x).join('\n')); console.log('\nALL PASSED');
   require('fs').rmSync('./test-data.json', { force: true });
 })().catch(e => { console.error('FAILED:', e.message); process.exit(1); });

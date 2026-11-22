@@ -39,7 +39,7 @@ function receipt(uid, rc) {
   notify.email(u, rc); return rc;
 }
 const pub = u => ({ uid: u.uid, email: u.email, name: u.name, phone: u.phone, bank: u.bank, wallet: u.wallet, finished: u.finished, defaults: u.defaults,
-  tier: tierOf(u), account: u.account || null, sol: u.sol || null, mandate: freshMandate(u) ? { status: u.mandate.status, bank: u.mandate.bank || null } : null, notes: u.notes, receipts: u.receipts });
+  tier: tierOf(u), ajo: scoreOf(u), account: u.account || null, sol: u.sol || null, mandate: freshMandate(u) ? { status: u.mandate.status, bank: u.mandate.bank || null } : null, notes: u.notes, receipts: u.receipts });
 
 // Paga reports the final result of a bank transfer. If it failed, the money goes back to the user's balance.
 function payoutResult(reference, code) {
@@ -107,6 +107,22 @@ function tierOf(u) {
   return { pct, label };
 }
 const tier = uid => tierOf(getUser(uid));
+
+/* ---------- Ajo Score: built from payment history, finished circles and default marks ---------- */
+// Every round payment is kept as on time or late. A missed payment is a default mark (counted once, on the user).
+function noteRound(uid, c, onTime) {
+  const u = db.users[uid]; if (!u) return;
+  u.history = u.history || [];
+  u.history.unshift({ at: Date.now(), cid: c.id, round: c.round, onTime: !!onTime });
+  u.history.length = Math.min(u.history.length, 200);
+}
+function scoreOf(u) {
+  const h = u.history || [], onTime = h.filter(x => x.onTime).length, late = h.length - onTime, missed = u.defaults || 0, finished = u.finished || 0;
+  if (!h.length && !finished && !missed) return { score: null, level: 'New', onTime: 0, late: 0, missed: 0, finished: 0 };
+  const score = Math.max(0, Math.min(100, 50 + Math.min(30, 2 * onTime) + Math.min(20, 10 * finished) - 3 * late - 15 * missed));
+  const level = score >= 85 ? 'Trusted' : score >= 60 ? 'Reliable' : score >= 40 ? 'Building' : 'At risk';
+  return { score, level, onTime, late, missed, finished };
+}
 
 /* ---------- circle lifecycle ---------- */
 function get(cid) { const c = db.circles[cid]; if (!c) throw new Error('circle not found'); return c; }
@@ -229,7 +245,7 @@ async function markPaid(reference) {
   }
   if (ref.round !== c.round || c.status !== 'active') throw new Error('payment is for an old round');
   if (m.paid) throw new Error('already paid or covered this round');
-  ref.done = true; m.paid = true;
+  ref.done = true; m.paid = true; noteRound(m.uid, c, now(c) <= deadline(c));
   const n = c.members.filter(x => x.paid).length;
   log(c, `${m.name} paid (${n} of ${c.members.length})`);
   receipt(m.uid, { title: 'Payment received', summary: `Your round ${c.round} payment to ${c.name} was received.`, amount: c.amount, reference, circleName: c.name });
@@ -307,7 +323,7 @@ function status(cid, uid) {
   const pct = to ? tier(to.uid).pct : 0, hb = to ? Math.floor(c.amount * (N - c.round) * pct / 100) : 0;
   const { shift, owner, ...rest } = c;
   return { ...rest, isOwner: owner === uid, myId: (c.members.find(m => m.uid === uid) || {}).id || null, pot, fee, pool: c.pool,
-    members: c.members.map(m => ({ id: m.id, name: m.name, slot: m.slot, paid: m.paid, deposit: m.deposit, auto: !!m.auto, hb: m.hb, defaulted: m.defaulted, tierPct: tier(m.uid).pct, tierLabel: tier(m.uid).label, you: m.uid === uid })),
+    members: c.members.map(m => ({ id: m.id, name: m.name, slot: m.slot, paid: m.paid, deposit: m.deposit, auto: !!m.auto, hb: m.hb, defaulted: m.defaulted, tierPct: tier(m.uid).pct, tierLabel: tier(m.uid).label, ajoLevel: scoreOf(getUser(m.uid)).level, you: m.uid === uid })),
     deadline: active ? deadline(c) : null, graceEnd: active ? graceEnd(c) : null, now: now(c), canSettle: canSettle(c),
     receiver: to ? to.name : null, receiverHoldback: hb, receiverPct: pct, receiverNet: active ? pot - fee - hb - c.shortfall : null };
 }
