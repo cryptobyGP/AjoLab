@@ -6,9 +6,10 @@
 <title>How AjoLabs works</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--tx:#f0f4f2;--mut:#96a09e;--dim:#606a68;--mint:#a8e8c5;--green:#64dea0;--line:rgba(255,255,255,.1);--card:rgba(255,255,255,.04);--red:#ec705c}
+:root{color-scheme:dark;--bgA:#0e1316;--bgB:#0a0e0d;--tx:#f0f4f2;--mut:#96a09e;--dim:#606a68;--mint:#a8e8c5;--green:#64dea0;--line:rgba(255,255,255,.1);--card:rgba(255,255,255,.04);--red:#ec705c}
+html[data-theme="light"]{color-scheme:light;--bgA:#F4F6F5;--bgB:#E8ECEA;--tx:#0E1113;--mut:#4A555B;--dim:#69747A;--mint:#117A4B;--green:#1FA66A;--line:rgba(14,17,19,.12);--card:rgba(14,17,19,.04);--red:#C9472F}
 *{box-sizing:border-box;margin:0}
-body{background:linear-gradient(180deg,#0e1316,#0a0e0d);color:var(--tx);font-family:Poppins,system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+body{background:linear-gradient(180deg,var(--bgA),var(--bgB));color:var(--tx);font-family:Poppins,system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
 .glow{position:fixed;inset:0;pointer-events:none;background:radial-gradient(520px 520px at 85% 0%,rgba(20,70,45,.55),transparent 70%),radial-gradient(420px 420px at 0% 100%,rgba(14,22,46,.6),transparent 70%)}
 header{position:relative;display:flex;align-items:center;justify-content:space-between;padding:20px 24px;max-width:860px;margin:0 auto}
 .brand{display:flex;align-items:center;gap:10px;font-weight:500;font-size:20px;color:var(--tx);text-decoration:none}
@@ -33,6 +34,7 @@ td:last-child,th:last-child{text-align:right}td b{font-weight:500;color:var(--tx
 .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:640px){.two{grid-template-columns:1fr}}
 .btn{display:inline-block;margin-top:30px;border-radius:99px;padding:14px 26px;font-weight:500;font-size:16px;color:#0b1a12;background:linear-gradient(135deg,#b9f7d6,#3fd68b);text-decoration:none}
 </style>
+<script>(function(){try{var t=localStorage.getItem("ajo-theme")||"dark";var d=t==="auto"?(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):t;document.documentElement.setAttribute("data-theme",d)}catch(e){}})()</script>
 </head>
 <body>
 <div class="glow"></div>

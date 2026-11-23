@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AjoLabs</title>
 <link rel="icon" href="/favicon.svg">
+<script>(function(){try{var t=localStorage.getItem("ajo-theme")||"dark";var d=t==="auto"?(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):t;document.documentElement.setAttribute("data-theme",d);}catch(e){document.documentElement.setAttribute("data-theme","dark")}})()</script>
+<meta name="theme-color" content="#111316">
 <script>if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}))</script>
 <link rel="preconnect" href="https://esm.sh" crossorigin>
 <link rel="modulepreload" href="https://esm.sh/react@18.3.1">
@@ -69,7 +71,7 @@
     <nav class="dnav" aria-label="Sections"><a href="#compare">Why Paga</a><a href="#collateral">Protection</a><a href="#paga">Paga</a><a href="#scale">Roadmap</a><a href="#token">Rewards</a></nav>
     <div class="topr">
       <button class="pill mint" data-open="portfolio">Open app <svg class="i" aria-hidden="true"><use href="#arrow"/></svg></button>
-      <button class="menu" id="menuBtn" aria-label="Menu" aria-expanded="false" aria-controls="menuSheet"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M5 10h18M5 18h18" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <button class="menu" id="menuBtn" aria-label="Menu" aria-expanded="false" aria-controls="menuSheet"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M5 10h18M5 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>
   </header>
   <nav class="menusheet" id="menuSheet" aria-label="Site menu">
@@ -241,8 +243,8 @@
     <div class="segc navseg" id="navSeg"></div>
     <div class="r">
       <button class="pill sm conn on" id="walletPill">Account</button>
-      <button class="menu" id="appMenuBtn" aria-label="Menu" aria-expanded="false" aria-controls="appMenu"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M5 10h18M5 18h18" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></button>
-      <button class="xbtn" id="closeApp" aria-label="Close app"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      <button class="menu" id="appMenuBtn" aria-label="Menu" aria-expanded="false" aria-controls="appMenu"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M5 10h18M5 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <button class="xbtn" id="closeApp" aria-label="Close app"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
     </div>
   </div>
   <nav class="appmenu" id="appMenu" aria-label="App pages">

@@ -228,7 +228,8 @@ function renderPortfolio(){
   $("#recScore").textContent=aj.score==null?"New":aj.score+" · "+aj.level;
   $("#recScoreNote").textContent=aj.score==null?"Builds as you pay on time":aj.onTime+" on time, "+aj.late+" late";
   $("#recFin").textContent=ME.finished; $("#recDef").textContent=ME.defaults; $("#recHb").textContent=ME.tier.pct+"%";
-  $("#acctBody").innerHTML='<ul style="padding:0"><li class="li"><span>Name<small>'+esc(ME.name||"-")+'</small></span></li><li class="li"><span>Email<small>'+esc(ME.email&&!ME.email.startsWith("demo:")?ME.email:"-")+'</small></span></li><li class="li"><span>Phone<small>'+esc(ME.phone||"-")+'</small></span></li><li class="li"><span>Bank<small>'+(ME.bank?esc(ME.bank.name)+" ending "+esc(ME.bank.account.slice(-4)):"Not added yet")+'</small></span><button class="pill outline sm" id="editBank" style="padding:8px 14px;font-size:14px">'+(ME.bank?"Change":"Add")+'</button></li></ul>';
+  $("#acctBody").innerHTML='<ul style="padding:0"><li class="li"><span>Name<small>'+esc(ME.name||"-")+'</small></span></li><li class="li"><span>Email<small>'+esc(ME.email&&!ME.email.startsWith("demo:")?ME.email:"-")+'</small></span></li><li class="li"><span>Phone<small>'+esc(ME.phone||"-")+'</small></span></li><li class="li"><span>Bank<small>'+(ME.bank?esc(ME.bank.name)+" ending "+esc(ME.bank.account.slice(-4)):"Not added yet")+'</small></span><button class="pill outline sm" id="editBank" style="padding:8px 14px;font-size:14px">'+(ME.bank?"Change":"Add")+'</button></li><li class="li"><span>Appearance</span><div class="themeseg" id="themeSeg">'+["light","dark","auto"].map(t=>'<button data-t="'+t+'" aria-pressed="'+(themePref()===t)+'">'+t[0].toUpperCase()+t.slice(1)+'</button>').join("")+'</div></li></ul>';
+  $$("#themeSeg button").forEach(b=>b.onclick=()=>{ setTheme(b.dataset.t); $$("#themeSeg button").forEach(x=>x.setAttribute("aria-pressed",x===b)); });
   const eb=$("#editBank"); if(eb) eb.onclick=()=>bankSheet();
   if(ME.notes&&ME.notes.some(n=>!n.read)&&page==="portfolio") api("/api/me/read",{body:{}}).then(m=>{ME.notes=m.notes.map(n=>({...n,read:false}));}).catch(()=>{});
 }
@@ -542,3 +543,14 @@ function bootPrivy(id){ if(PRIVY_STARTED||!id) return; PRIVY_STARTED=true; start
   if(CONFIG.privyAppId){ bootPrivy(CONFIG.privyAppId); if(!cached.privyAppId){ if(SESSION()) showSplash(); else showWelcome(); } }
   else { $("#wDemo").style.display="block"; if(demoToken()) await enter(); else showWelcome(); }
 })();
+
+/* ---------- light / dark / auto ---------- */
+function themePref(){ try{ return localStorage.getItem("ajo-theme")||"dark"; }catch(e){ return "dark"; } }
+function applyTheme(){
+  const p=themePref(), d=p==="auto"?(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):p;
+  document.documentElement.setAttribute("data-theme",d);
+  const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content=d==="light"?"#F4F6F5":"#111316";
+}
+function setTheme(t){ try{ localStorage.setItem("ajo-theme",t); }catch(e){} applyTheme(); }
+try{ matchMedia("(prefers-color-scheme: light)").addEventListener("change",()=>{ if(themePref()==="auto") applyTheme(); }); }catch(e){}
+applyTheme();
