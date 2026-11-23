@@ -220,6 +220,7 @@ function renderPortfolio(){
     if(!next||est>next){ next=est; note=esc(c.name)+", round "+me.slot+". Holdback "+me.tierPct+"% of what you still owe."; }
   }
   $("#pfNext").textContent=money(next); $("#pfNextNote").innerHTML=note;
+  renderHome();
   const notes=ME.notes||[];
   $("#noteBody").innerHTML=notes.length?notes.slice(0,6).map(n=>'<div class="nrow '+(n.read?"":"new")+'" '+(n.receipt?' data-rc="'+n.receipt+'"':'')+'><b>'+esc(n.title)+'</b><small>'+esc(n.text)+' '+ago(n.at)+'</small></div>').join(""):'<p class="empty">Nothing yet. You will see payments and payouts here.</p>';
   const rcs=ME.receipts||[];
@@ -567,3 +568,30 @@ function applyTheme(){
 function setTheme(t){ try{ localStorage.setItem("ajo-theme",t); }catch(e){} applyTheme(); }
 try{ matchMedia("(prefers-color-scheme: light)").addEventListener("change",()=>{ if(themePref()==="auto") applyTheme(); }); }catch(e){}
 applyTheme();
+
+/* ---------- Portfolio home: greeting, active circle, tiles, proof strip ---------- */
+function renderHome(){
+  const hr=new Date(new Date().toLocaleString("en-US",{timeZone:"Africa/Lagos"})).getHours();
+  const first=(ME.name||"").trim().split(/\s+/)[0];
+  $("#helloSub").textContent=(hr<12?"Good morning":hr<17?"Good afternoon":"Good evening")+(first?", "+first:"");
+  const mine=circles.filter(c=>c.members.some(m=>m.you));
+  const act=mine.find(c=>c.status==="active")||mine.find(c=>c.status==="deposits")||mine.find(c=>c.status==="filling");
+  $("#helloH").textContent=act&&act.status==="active"?"Your circles are on track.":mine.length?"Your circle is getting ready.":"Start saving together.";
+  const el=$("#activeCard");
+  if(!act){ el.innerHTML=""; }
+  else{
+    const N=act.maxMembers, cur=act.status==="active"?act.round:0;
+    const tag=act.status==="active"?"Round "+act.round+" of "+N:act.status==="deposits"?"Deposits":"Filling up";
+    const bars=Array.from({length:N},(_,i)=>'<i class="'+(i<cur-1?"done":i===cur-1?"now":"")+'"></i>').join("");
+    const me=act.members.find(m=>m.you);
+    const line=act.status==="active"?'<span>Next payout: <b>'+esc(act.receiver||"")+'</b></span><span><b>'+money(act.receiverNet||0)+'</b></span>':'<span>'+act.members.length+' of '+N+' members joined</span><span><b>'+money(act.amount)+'</b> each round</span>';
+    el.innerHTML='<div class="pcard activec" data-circle="'+act.id+'" role="button" tabindex="0"><div class="acTop"><div><small>Active circle'+(act.goal&&GOAL_LABEL[act.goal]?" · "+GOAL_LABEL[act.goal]:"")+'</small><h4>'+esc(act.name)+'</h4></div><span class="acTag">'+tag+'</span></div><div class="acBars" style="grid-template-columns:repeat('+N+',minmax(0,1fr))">'+bars+'</div><div class="acLine">'+line+'</div><button class="pill block mintbtn" data-circle="'+act.id+'">Open circle</button></div>';
+  }
+  const aj=ME.ajo||{score:null,level:"New"};
+  $("#tileScoreN").textContent=aj.score==null?"New":aj.score; $("#tileScoreL").textContent=aj.score==null?"Ajo Score":aj.level;
+  let tot=0,ok=0; for(const c of mine){ if(c.proof){ tot+=c.proof.total; ok+=c.proof.confirmed; } }
+  const ps=$("#proofStrip"); ps.hidden=!tot; if(tot) ps.innerHTML='<span class="dot"></span><span>'+tot+' record'+(tot===1?"":"s")+' saved on Solana. '+(ok===tot?"All confirmed.":ok+" confirmed.")+'</span>';
+}
+$("#tileRc").onclick=()=>{ const e=$("#rcBody"); if(e) e.scrollIntoView({behavior:"smooth",block:"center"}); };
+$("#tileScore").onclick=()=>{ const e=$("#recScore"); if(e) e.scrollIntoView({behavior:"smooth",block:"center"}); };
+$("#activeCard").addEventListener("click",e=>{ const r=e.target.closest("[data-circle]"); if(r) openCircle(r.dataset.circle); });

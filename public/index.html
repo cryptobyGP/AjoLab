@@ -258,8 +258,7 @@
 
   <div class="appmain" id="appmain">
     <section class="page on" id="p-portfolio" aria-label="Portfolio">
-      <h2>Portfolio</h2>
-      <p class="alede">Your circles, your balance and your receipts.</p>
+      <div class="hello"><div class="hsub" id="helloSub">Welcome</div><h2 id="helloH">Your circles</h2></div>
       <div class="col1">
         <div class="pcard gb spot"><div class="pbody">
           <div class="row"><span class="ptitle">Your balance</span><span class="ptag g"><svg aria-hidden="true"><use href="#lock"/></svg>Payouts land here</span></div>
@@ -271,11 +270,15 @@
           <button class="pill outline block abtn" id="pfWallet" style="margin-bottom:8px"><span id="pfWalletTxt">Connect Solana wallet</span></button>
           <div class="card" id="pfUsd" style="display:none;margin:0 0 10px"><div class="row"><span>Wallet (USD) · devnet</span><b id="pfUsdTot">$0.00</b></div><div class="row" style="margin-top:8px;font-size:13px"><span class="muted" id="pfUsdDet"></span><button class="pill sm abtn" id="pfUsdRef" style="background:transparent;border:1px solid var(--line);color:inherit">Refresh</button></div></div>
           <button class="pill outline block abtn" id="pfWithdraw"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Transfer to bank</span></button>
-          <div class="two">
-            <button class="pill outline" data-page="create"><svg aria-hidden="true"><use href="#plus"/></svg>Start a circle</button>
-            <button class="pill outline" data-page="join"><svg aria-hidden="true"><use href="#swap"/></svg>Join</button>
-          </div>
         </div></div>
+        <div id="activeCard"></div>
+        <div class="tiles">
+          <button class="tile" data-page="create"><svg aria-hidden="true"><use href="#plus"/></svg><b>Start a circle</b><small>Rent, school fees, Detty December</small></button>
+          <button class="tile" data-page="join"><svg aria-hidden="true"><use href="#swap"/></svg><b>Join with a link</b><small>Got an invite? Paste it</small></button>
+          <button class="tile" id="tileRc"><svg aria-hidden="true"><use href="#check"/></svg><b>Receipts</b><small>Save as image or PDF</small></button>
+          <button class="tile" id="tileScore"><span class="tnum" id="tileScoreN">New</span><b id="tileScoreL">Ajo Score</b><small>Lower holdback on new circles</small></button>
+        </div>
+        <div class="proofstrip" id="proofStrip" hidden></div>
         <div class="pcard">
           <div class="ph"><div><h4>Your circles</h4><p>Saving with people you trust</p></div><span class="ptag g"><svg aria-hidden="true"><use href="#lock"/></svg>Private</span></div>
           <div class="pb" id="circlesBody"></div>

@@ -599,3 +599,35 @@ img.paga{height:26px;width:26px;border-radius:7px;display:block}
 @keyframes wdfly{0%,100%{transform:translate(-6px,4px) rotate(-3deg)}50%{transform:translate(8px,-8px) rotate(2deg)}}
 @keyframes wdpop{0%{transform:scale(.4) rotate(-20deg);opacity:0}70%{transform:scale(1.08) rotate(4deg);opacity:1}100%{transform:scale(1) rotate(0)}}
 @media (prefers-reduced-motion:reduce){.wdplane,.wdbadge{animation:none}}
+
+/* ---------- portfolio home ---------- */
+.hello{margin-bottom:18px}
+.hello .hsub{font-size:14px;color:var(--dim);margin-bottom:6px}
+.hello h2{margin:0}
+#p-portfolio>.hello{grid-column:1/-1}
+.activec{padding:18px 20px;cursor:pointer;display:flex;flex-direction:column;gap:14px}
+.acTop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.acTop small{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.acTop h4{font-size:21px;font-weight:600;margin:4px 0 0}
+.acTag{font-size:12px;font-weight:600;background:var(--pillgreen);color:var(--paidt);padding:6px 11px;border-radius:99px;white-space:nowrap}
+.acBars{display:grid;gap:6px}
+.acBars i{height:8px;border-radius:99px;background:var(--s3)}
+.acBars i.done{background:var(--green)}
+.acBars i.now{background:var(--mint);box-shadow:0 0 0 3px rgba(var(--mintrgb),.22)}
+.acLine{display:flex;justify-content:space-between;gap:10px;font-size:14px;color:var(--soft)}
+.acLine b{color:var(--text);font-weight:600}
+.pill.mintbtn{background:var(--green);color:#04150C;font-weight:700;border:0;margin:0}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.tile{font:inherit;color:var(--text);text-align:left;border-radius:22px;padding:16px;background:var(--s1);border:1px solid var(--line1);display:flex;flex-direction:column;gap:8px;min-height:96px;cursor:pointer}
+.tile:active{background:var(--s2)}
+.tile svg{width:22px;height:22px;stroke:var(--mint);fill:none;stroke-width:2}
+.tile b{font-size:15px;font-weight:600}
+.tile small{font-size:12px;color:var(--dim);line-height:1.35}
+.tile .tnum{font-size:26px;font-weight:600;color:var(--mint);line-height:1}
+.proofstrip{display:flex;align-items:center;gap:10px;border-radius:99px;padding:12px 16px;background:var(--s1);border:1px solid var(--line1);font-size:13px;color:var(--soft);margin-bottom:16px}
+.proofstrip .dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none}
+#p-portfolio .bignum{font-weight:600;letter-spacing:-.03em}
+#pfBal{font-size:44px}
+.pcard.gb.spot:first-of-type{background:linear-gradient(135deg,rgba(var(--grnrgb),.22),transparent 70%),var(--s1)}
+.proofstrip[hidden]{display:none}
+.tile svg{color:var(--mint)}
