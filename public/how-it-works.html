@@ -111,6 +111,34 @@ td:last-child,th:last-child{text-align:right}td b{font-weight:500;color:var(--tx
   </section>
 
   <section>
+    <h2>Your Ajo Score</h2>
+    <p>Every on-time payment builds your record. AjoLabs turns it into a score from 0 to 100 and a level. Everyone in a circle can see each member's level, so you know who is reliable.</p>
+    <div class="card">
+      <table>
+        <tr><th>What happens</th><th>Effect on your score</th></tr>
+        <tr><td>You start with a record</td><td><b>50</b></td></tr>
+        <tr><td>Each payment made on time</td><td><b>+2</b> (up to +30)</td></tr>
+        <tr><td>Each circle you finish</td><td><b>+10</b> (up to +20)</td></tr>
+        <tr><td>Each late payment</td><td><b>−3</b></td></tr>
+        <tr><td>Each missed payment</td><td><b>−15</b></td></tr>
+      </table>
+      <p class="note">Levels: New (no record yet), Building (40 to 59), Reliable (60 to 84), Trusted (85 and above), At risk (below 40). You see your full score on your profile. Other members see only your level. The score is separate from the holdback tiers above, which work the same as before.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Proof on Solana</h2>
+    <p>Paga moves the money. Solana keeps the proof. Every key event in a circle is recorded: the circle starting, each payment, each payout, each missed payment, and the circle finishing.</p>
+    <ol class="steps">
+      <li>AjoLabs adds the event to the circle's record and links it to the one before it with a hash. Change an old record and the chain breaks.</li>
+      <li>The event is also written to Solana as a small public memo. It holds the circle id, the event, the round and the hash. It holds no names, emails or phone numbers. Members appear only as short seat codes.</li>
+      <li>Each record shows as Pending, Sent or Confirmed in the circle, with a link to the Solana explorer.</li>
+      <li>Anyone with a circle id can read the full record at <span class="mint">/api/proof/&lt;circle id&gt;</span> and check it against Solana.</li>
+    </ol>
+    <p class="note">This runs on Solana devnet, a test network, so it costs nothing and no real money is involved. Records can take a minute to confirm. If Solana is slow, payments and payouts carry on and the records are sent when it recovers.</p>
+  </section>
+
+  <section>
     <h2>Fees</h2>
     <p>The service fee is 1% of the pot, taken at each payout. A quarter of every fee goes into the circle's default pool. These numbers are placeholders for the demo and can change.</p>
   </section>
