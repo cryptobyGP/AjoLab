@@ -201,7 +201,7 @@ setInterval(()=>{ if(ME&&!document.hidden&&appEl.classList.contains("on")&&!$("#
 const money=n=>fmt(n);
 function circleRow(c){
   const tag=c.status==="filling"?"Filling up":c.status==="deposits"?"Deposits":c.status==="completed"?"Finished":"Round "+c.round+" of "+c.maxMembers;
-  return '<li class="li" data-circle="'+c.id+'" style="cursor:pointer"><span>'+esc(c.name)+'<small>'+money(c.amount)+' '+CYC[c.cycleDays]+', '+c.members.length+'/'+c.maxMembers+' members</small></span><span class="tags"><span class="ctag '+(c.status==="active"?"next":"wait")+'">'+tag+'</span></span></li>';
+  return '<li class="li" data-circle="'+c.id+'" style="cursor:pointer"><span>'+esc(c.name)+'<small>'+(c.goal&&GOAL_LABEL[c.goal]?GOAL_LABEL[c.goal]+', ':'')+money(c.amount)+' '+CYC[c.cycleDays]+', '+c.members.length+'/'+c.maxMembers+' members</small></span><span class="tags"><span class="ctag '+(c.status==="active"?"next":"wait")+'">'+tag+'</span></span></li>';
 }
 function renderPortfolio(){
   if(!ME) return;
@@ -289,9 +289,32 @@ function askOtp(purpose){
 function seenSync(){ (ME.notes||[]).forEach(n=>seen&&seen.add(n.id)); }
 
 /* ---------- create ---------- */
-const draft={size:5,cycle:7};
-seg($("#sizeSeg"),[3,4,5,6,8,10].map(n=>({v:n,l:String(n)})),()=>draft.size,v=>{draft.size=+v;renderSum();});
-seg($("#cycSeg"),[{v:7,l:"Weekly"},{v:14,l:"2 weeks"},{v:30,l:"Monthly"}],()=>draft.cycle,v=>{draft.cycle=+v;renderSum();});
+const draft={size:5,cycle:7,goal:null};
+const sizeSeg=seg($("#sizeSeg"),[3,4,5,6,8,10].map(n=>({v:n,l:String(n)})),()=>draft.size,v=>{draft.size=+v;renderSum();});
+const cycSeg=seg($("#cycSeg"),[{v:7,l:"Weekly"},{v:14,l:"2 weeks"},{v:30,l:"Monthly"}],()=>draft.cycle,v=>{draft.cycle=+v;renderSum();});
+/* goal templates: one tap fills the form. The amounts are only suggestions. */
+const GOALS=[
+ {id:"rent",label:"Rent",name:"Rent Circle",amount:20000,size:6,cycle:30,hint:"Monthly rounds, so each person gets a big lump sum toward rent."},
+ {id:"school",label:"School fees",name:"School Fees Circle",amount:10000,size:5,cycle:30,hint:"Monthly rounds, so each person has fees ready when a term starts."},
+ {id:"detty",label:"Detty December",name:"Detty December",amount:5000,size:5,cycle:7,hint:"Five weekly rounds, so everyone gets a pot before the December rush."},
+ {id:"business",label:"Business stock",name:"Business Stock Circle",amount:10000,size:5,cycle:14,hint:"Every 2 weeks, to restock or buy equipment."},
+ {id:"owambe",label:"Owambe and events",name:"Owambe Fund",amount:5000,size:6,cycle:14,hint:"Every 2 weeks, for aso ebi, gifts and event costs."},
+ {id:"emergency",label:"Emergency fund",name:"Emergency Fund",amount:3000,size:5,cycle:7,hint:"Small weekly amounts, so a pot is ready when life happens."}
+];
+const GOAL_LABEL=Object.fromEntries(GOALS.map(g=>[g.id,g.label]));
+function renderGoals(){
+  $("#tplRow").innerHTML=GOALS.map(g=>'<button type="button" class="tpl" data-g="'+g.id+'" aria-pressed="'+(draft.goal===g.id)+'">'+g.label+'</button>').join("");
+  const g=GOALS.find(x=>x.id===draft.goal);
+  $("#tplNote").textContent=g?g.hint+" The amount is only a suggestion, so change anything you like.":"Pick a goal to fill in the details, or set your own below.";
+}
+$("#tplRow").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-g]"); if(!b) return;
+  if(draft.goal===b.dataset.g){ draft.goal=null; renderGoals(); return; }          // tap again to clear
+  const g=GOALS.find(x=>x.id===b.dataset.g); draft.goal=g.id;
+  $("#cName").value=g.name; $("#cAmt").value=g.amount; draft.size=g.size; draft.cycle=g.cycle;
+  sizeSeg.render(); cycSeg.render(); renderSum(); renderGoals();
+});
+renderGoals();
 $("#cAmt").addEventListener("input",renderSum);
 function renderSum(){
   const a=Math.max(0,+$("#cAmt").value||0),pot=a*draft.size,fee=Math.floor(pot*FEE);
@@ -299,7 +322,7 @@ function renderSum(){
 }
 $("#createBtn").onclick=async()=>{
   const b=$("#createBtn"); b.disabled=true;
-  try{ const c=await api("/api/circles",{body:{name:$("#cName").value,amount:+$("#cAmt").value,maxMembers:draft.size,cycleDays:draft.cycle}}); await refresh(); openCircle(c.id); toast("Circle created. Share the invite link."); }
+  try{ const c=await api("/api/circles",{body:{name:$("#cName").value,amount:+$("#cAmt").value,maxMembers:draft.size,cycleDays:draft.cycle,goal:draft.goal||undefined}}); draft.goal=null; renderGoals(); await refresh(); openCircle(c.id); toast("Circle created. Share the invite link."); }
   catch(e){ toast(e.message); } b.disabled=false;
 };
 
@@ -313,7 +336,7 @@ async function lookup(){
     $("#jTitle").textContent="You're invited"; $("#jLede").textContent="Check the rules, then join.";
     $("#jFind").style.display="none"; const el=$("#jCard"); el.style.display="block";
     const full=c.status!=="filling", mine=circles.some(x=>x.id===c.id);
-    el.innerHTML='<div class="card"><div class="big">'+esc(c.name)+'</div><div class="muted" style="margin-top:6px">'+c.maxMembers+' members, '+CYC[c.cycleDays]+', invite only</div><hr style="border:0;border-top:1px solid #262B30;margin:14px 0">'+
+    el.innerHTML='<div class="card"><div class="big">'+esc(c.name)+'</div><div class="muted" style="margin-top:6px">'+(c.goal&&GOAL_LABEL[c.goal]?esc(GOAL_LABEL[c.goal])+', ':'')+c.maxMembers+' members, '+CYC[c.cycleDays]+', invite only</div><hr style="border:0;border-top:1px solid #262B30;margin:14px 0">'+
       '<div class="row"><span>You pay each round</span><b>'+money(c.amount)+'</b></div><div class="row" style="margin-top:10px"><span>Pot per round</span><b>'+money(pot)+'</b></div><div class="row" style="margin-top:10px"><span>Upfront deposit</span><b>'+money(c.amount)+'</b></div><div class="row" style="margin-top:10px"><span>Holdback when you receive</span><b>'+ME.tier.pct+'% of what you owe</b></div><div class="row" style="margin-top:10px"><span>Seats taken</span><b>'+c.joined+'/'+c.maxMembers+'</b></div></div>'+
       '<div class="summary" style="margin-top:0">You put down a '+money(c.amount)+' deposit before round 1. When you receive the pot, part of what you still owe is held back and released as you keep paying. Both come back if you never default.</div>'+
       (mine?'<button class="pill block abtn" id="jOpen">Open this circle</button>':full?'<p class="note">This circle is already full.</p>':'<button class="pill block abtn" id="jGo">Join this circle</button>');

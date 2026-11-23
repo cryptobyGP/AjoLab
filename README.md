@@ -8,7 +8,7 @@ AjoLabs is a prototype running on Paga's sandbox with test money. No real money 
 
 ## What it does
 
-- **Private circles.** Set the amount, the number of members and how often people pay. Share a private invite link, including a WhatsApp share button.
+- **Private circles.** Set the amount, the number of members and how often people pay, or start from a goal such as Rent, School fees or Detty December that fills in suggested details. Share a private invite link, including a WhatsApp share button.
 - **Payments through Paga.** Each member gets a Paga account number to fund their balance. Contributions go through Paga checkout or direct debit, and payouts go to any Nigerian bank through the Paga Business API.
 - **Rules that protect the group.** A deposit from every member, a holdback from each payout that shrinks as people finish circles, a default pool, a countdown with a grace period, and settlement when someone misses a payment.
 - **Ajo Score.** On-time payments, finished circles, late payments and missed payments become a score and a level (New, Building, Reliable, Trusted, At risk). Members see only each other's level.

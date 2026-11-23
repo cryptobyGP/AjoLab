@@ -558,3 +558,11 @@ img.paga{height:26px;width:26px;border-radius:7px;display:block}
 .helppop b{display:block;font-weight:500;color:#fff;font-size:15px}
 .helppop p{margin:4px 0 10px;color:var(--dim);line-height:1.4}
 .helppop a{display:block;padding:9px 0;border-top:1px solid #23272B;color:var(--soft)}
+
+/* goal templates on the create screen */
+.tpls{display:flex;gap:8px;overflow-x:auto;padding:2px 28px 10px 0;scrollbar-width:none;-webkit-overflow-scrolling:touch;-webkit-mask-image:linear-gradient(90deg,#000 86%,transparent);mask-image:linear-gradient(90deg,#000 86%,transparent)}
+.tpls::-webkit-scrollbar{display:none}
+.tpl{flex:0 0 auto;padding:10px 16px;border-radius:99px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04);color:var(--soft);font:inherit;font-size:14px;cursor:pointer;white-space:nowrap;transition:background .2s var(--ease),border-color .2s var(--ease),color .2s var(--ease)}
+.tpl:hover{border-color:rgba(100,222,160,.5)}
+.tpl[aria-pressed="true"]{border-color:var(--green);background:rgba(63,214,139,.14);color:var(--mint)}
+.tplnote{font-size:13px;color:var(--dim);margin:0 0 6px;line-height:1.5}

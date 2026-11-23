@@ -99,6 +99,10 @@ async function fill() {
   assert.ok(sent.some(r => /AjoLabs v1\|/.test(r.toString('latin1'))), 'memo text is in the transaction');
   global.fetch = realFetch; process.env.SOL_ANCHOR = 'off';
 
+  // 8. Goals: a known goal is kept, anything else is dropped
+  { const g1 = circle.createCircle({ name: 'G1', amount: 5000, maxMembers: 3, cycleDays: 7, goal: 'detty' }, U(0)), g2 = circle.createCircle({ name: 'G2', amount: 5000, maxMembers: 3, cycleDays: 7, goal: '<script>' }, U(0)), g3 = circle.createCircle({ name: 'G3', amount: 5000, maxMembers: 3, cycleDays: 7 }, U(0));
+    assert.equal(circle.status(g1.id, U(0)).goal, 'detty'); assert.equal(circle.status(g2.id, U(0)).goal, null); assert.equal(circle.status(g3.id, U(0)).goal, null); assert.equal(circle.preview(g1.id).goal, 'detty'); }
+
   // 7. Reminders: once before the deadline, once when late, never to someone who has paid, never twice
   {
     const rc = await fill(), live = require('./store').db.circles[rc.id], HOUR = 3600e3;

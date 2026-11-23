@@ -128,12 +128,13 @@ function scoreOf(u) {
 /* ---------- circle lifecycle ---------- */
 function get(cid) { const c = db.circles[cid]; if (!c) throw new Error('circle not found'); return c; }
 
-function createCircle({ name, amount, maxMembers, cycleDays }, uid) {
+const GOALS = ['rent', 'school', 'detty', 'business', 'owambe', 'emergency'];   // what a circle is saving for (optional)
+function createCircle({ name, amount, maxMembers, cycleDays, goal }, uid) {
   if (!(amount > 0)) throw new Error('amount must be greater than 0');
   if (!(maxMembers >= 3 && maxMembers <= 10)) throw new Error('circle size must be 3 to 10');
   if (![7, 14, 30].includes(cycleDays)) throw new Error('cycleDays must be 7, 14 or 30');
   const c = { id: id(4), name, amount, maxMembers, cycleDays, members: [], round: 1, status: 'filling',
-              startAt: null, cycleStartAt: null, shift: 0, pool: 0, shortfall: 0, ledger: [], owner: uid, created: Date.now() };
+              startAt: null, cycleStartAt: null, shift: 0, pool: 0, shortfall: 0, ledger: [], owner: uid, created: Date.now(), goal: GOALS.includes(goal) ? goal : null };
   name = String(name || '').trim().slice(0, 40); if (!name) throw new Error('Give the circle a name'); c.name = name;
   db.circles[c.id] = c; joinCircle(c.id, uid); log(c, `${getUser(uid).name} created the circle`);
   save(); return c;
@@ -370,7 +371,7 @@ async function devPayOthers(cid, me, exceptSlot) {
 }
 
 const mine = uid => Object.values(db.circles).filter(c => c.members.some(m => m.uid === uid)).sort((a, b) => b.created - a.created).map(c => status(c.id, uid));
-const preview = cid => { const c = get(cid); return { id: c.id, name: c.name, amount: c.amount, maxMembers: c.maxMembers, cycleDays: c.cycleDays, status: c.status, joined: c.members.length }; };
+const preview = cid => { const c = get(cid); return { id: c.id, name: c.name, amount: c.amount, maxMembers: c.maxMembers, cycleDays: c.cycleDays, status: c.status, joined: c.members.length, goal: c.goal || null }; };
 
 // Demo helpers (mock mode only): add pretend members and pay for them so one person can try the whole flow.
 function devFill(cid) {
