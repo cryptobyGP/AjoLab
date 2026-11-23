@@ -264,16 +264,29 @@ async function bankSheet(then){
       ME=await api("/api/me",{body:{bank:{code:sel.value,name:sel.options[sel.selectedIndex].text,account:$("#bAcc").value.trim()}}}); closeSheet(); renderPortfolio(); toast("Bank account saved"); if(then) then();
     }catch(e){ $("#bErr").textContent=e.message; } }; });
 }
+const PLANE='<svg class="wdplane" viewBox="0 0 120 100" aria-hidden="true"><path d="M8 52 112 6 80 94 58 62z" fill="#1FA85F"/><path d="M58 62 112 6 66 70z" fill="#0E6B3A"/><path d="M58 62 66 70 60 90z" fill="#0A0C0E"/><path d="M4 70h18M12 82h14M2 58h12" stroke="#1FA85F" stroke-width="3" stroke-linecap="round" class="wdlines"/></svg>';
+const BADGE='<svg class="wdbadge" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 6l11 8 13-2 6 12 12 6-2 13 8 11-8 11 2 13-12 6-6 12-13-2-11 8-11-8-13 2-6-12-12-6 2-13-8-11 8-11-2-13 12-6 6-12 13 2z" fill="#1FA85F" transform="translate(2 4)" opacity=".28"/><path d="M50 4l11 8 13-2 6 12 12 6-2 13 8 11-8 11 2 13-12 6-6 12-13-2-11 8-11-8-13 2-6-12-12-6 2-13-8-11 8-11-2-13 12-6 6-12 13 2z" fill="#1FA85F"/><path d="M30 52l14 14 27-30" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 $("#pfWithdraw").onclick=()=>{
   if(!ME.bank) return bankSheet(()=>$("#pfWithdraw").click());
+  const chips=[500,1000,2000,5000,10000,20000].filter(v=>v<=ME.wallet);
   sheet('<h2>Transfer to bank</h2><p class="alede">Sent through '+PG+'Paga to '+esc(ME.bank.name)+' ending '+esc(ME.bank.account.slice(-4))+'.</p><div class="card"><div class="row"><span>Available</span><b>'+money(ME.wallet)+'</b></div></div>'+
-    '<label for="wAmt" style="margin-top:0">Amount (₦)</label><input id="wAmt" type="number" inputmode="numeric" value="'+ME.wallet+'" min="100" max="'+ME.wallet+'">'+
+    '<label for="wAmt" style="margin-top:0">Enter amount (₦)</label><input id="wAmt" type="number" inputmode="numeric" value="'+ME.wallet+'" min="100" max="'+ME.wallet+'">'+
+    (chips.length?'<div class="amtchips">'+chips.map(v=>'<button type="button" data-v="'+v+'">'+money(v)+'</button>').join("")+'</div>':'')+
     '<div id="wErr2" style="color:var(--bad);font-size:14px;margin-top:10px"></div><button class="pill block abtn" id="wGo">Send to my bank</button><button class="pill outline block abtn" data-close>Cancel</button>',
-  ()=>{ $("#wGo").onclick=async()=>{ const amt=+$("#wAmt").value; if(!(amt>=100)) return $("#wErr2").textContent="Minimum transfer is ₦100";
+  ()=>{ $$(".amtchips button").forEach(b=>b.onclick=()=>{ $("#wAmt").value=b.dataset.v; });
+    $("#wGo").onclick=async()=>{ const amt=+$("#wAmt").value; if(!(amt>=100)) return $("#wErr2").textContent="Minimum transfer is ₦100";
+    if(amt>ME.wallet) return $("#wErr2").textContent="That is more than your balance";
     const otp=await askOtp("withdraw"); if(!otp) return;
-    toast("Sending...");
-    try{ ME=await api("/api/withdraw",{body:{amount:amt,otp}}); closeSheet(); renderPortfolio(); toast(money(amt)+" is on its way to your bank. Receipt saved."); seenSync(); }
-    catch(e){ toast(e.message); $("#pfWithdraw").click(); } }; });
+    sheet('<div class="wdview">'+PLANE+'<h3>Processing...</h3><p>Your transfer is processing</p></div>');
+    const t0=Date.now();
+    try{
+      const m=await api("/api/withdraw",{body:{amount:amt,otp}});
+      const wait=Math.max(0,1600-(Date.now()-t0)); await new Promise(r=>setTimeout(r,wait));
+      ME=m; renderPortfolio(); seenSync();
+      sheet('<div class="wdview">'+BADGE+'<h3>Success!</h3><p>'+money(amt)+' is on its way to your bank. Your receipt is saved.</p><button class="pill block abtn wdok" id="wdDone">Nice one!</button></div>',()=>{ $("#wdDone").onclick=closeSheet; });
+    }catch(e){
+      sheet('<div class="wdview"><h3>Transfer did not go through</h3><p>'+esc(e.message)+'</p><button class="pill block abtn" id="wdRetry">Try again</button><button class="pill outline block abtn" data-close>Close</button></div>',()=>{ $("#wdRetry").onclick=()=>$("#pfWithdraw").click(); });
+    } }; });
 };
 // Ask for a 6-digit code sent to the user's email. Resolves with the code, or null if cancelled.
 function askOtp(purpose){
