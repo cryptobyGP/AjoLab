@@ -123,11 +123,25 @@ async function fill() {
     const init = await cn.handle({ jsonrpc: '2.0', id: 0, method: 'initialize', params: { protocolVersion: '2025-03-26' } }, cn.userByToken(tok));
     assert.equal(init.result.serverInfo.name, 'AjoLabs');
     assert.equal(await cn.handle({ jsonrpc: '2.0', method: 'notifications/initialized' }, cn.userByToken(tok)), null, 'notifications get no reply');
-    assert.ok(cn.listTools().every(t => t.annotations.readOnlyHint), 'every tool is read only');
+    assert.deepEqual(cn.listTools().filter(t => !t.annotations.readOnlyHint).map(t => t.name), ['prepare_payment'], 'only prepare_payment is not read only');
     const mine = JSON.parse((await call('my_circles')).result.content[0].text); assert.ok(mine.length >= 1, 'lists circles');
     const st = JSON.parse((await call('circle_status', { circle: mine[0].name })).result.content[0].text); assert.ok(Array.isArray(st.members));
     assert.ok(!JSON.stringify(st).includes('@x.com'), 'no email addresses leak to the assistant');
     assert.ok((await call('circle_status', { circle: 'nope-nope' })).result.isError, 'bad name is a tool error');
+    { // pay by chat: prepare does not pay; only approve pays
+      const cc = circle.createCircle({ name: 'Chatpay', amount: 5000, maxMembers: 3, cycleDays: 7 }, U(0)); circle.devFill(cc.id);
+      assert.equal(circle.status(cc.id, U(0)).status, 'deposits');
+      circle.fund(U(0), 20000); const before = circle.getUser(U(0)).wallet;
+      { const p0 = cn.prepare(U(0), 'Chatpay'); circle.getUser(U(0)).payReqs.find(r => r.id === p0.id).exp = Date.now() - 1; await assert.rejects(() => cn.approve(U(0), p0.id), /expired/, 'expired request refused'); }
+      const prep = JSON.parse((await call('prepare_payment', { circle: 'Chatpay' })).result.content[0].text);
+      assert.ok(prep.prepared && /\?approve=\w+/.test(prep.approveHere));
+      assert.equal(circle.getUser(U(0)).wallet, before, 'preparing moves no money');
+      const rid = prep.approveHere.split('approve=')[1];
+      await assert.rejects(() => cn.approve(U(1), rid), /not found/, 'another person cannot approve it');
+      await cn.approve(U(0), rid); assert.equal(circle.getUser(U(0)).wallet, before - 5000, 'approve pays once');
+      await assert.rejects(() => cn.approve(U(0), rid), /already approved/, 'cannot approve twice');
+      assert.ok((await call('prepare_payment', { circle: 'Chatpay' })).result.isError, 'nothing left to pay');
+    }
     cn.revoke(U(0)); assert.equal(cn.userByToken(tok), null, 'revoked link stops working');
   }
 

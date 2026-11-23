@@ -84,6 +84,8 @@ const server = http.createServer(async (req, res) => {
     if (p.startsWith('/api/')) {
       const uid = await who(req);
       if (m === 'POST' && p === '/api/connector') { const b = await json(req); if (b.revoke) { connector.revoke(uid); return send(res, 200, { on: false }); } return send(res, 200, { on: true, token: connector.create(uid) }); }
+      if ((mt = p.match(/^\/api\/approve\/(\w+)$/)) && m === 'GET') return send(res, 200, connector.describe(uid, mt[1]));
+      if ((mt = p.match(/^\/api\/approve\/(\w+)$/)) && m === 'POST') { await connector.approve(uid, mt[1]); return send(res, 200, circle.pub(circle.getUser(uid))); }
       if (m === 'GET' && p === '/api/banks') return send(res, 200, await paga.banks());
       if (m === 'GET' && p === '/api/me') return send(res, 200, circle.pub(circle.getUser(uid)));
       if (m === 'POST' && p === '/api/me') return send(res, 200, circle.profile(uid, await json(req)));

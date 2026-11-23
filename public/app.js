@@ -92,8 +92,9 @@ async function enter(){
   entering=true;
   try{
     ME=await api("/api/me"); hideWelcome(); hideSplash(); setSession(true); seenInit();
-    const j=new URLSearchParams(location.search).get("join");
+    const j=new URLSearchParams(location.search).get("join"), ap=new URLSearchParams(location.search).get("approve");
     if(!ME.name) await setupSheet();
+    if(ap){ history.replaceState(null,"",location.pathname); await refresh(); approveSheet(ap); }
     if(j){ history.replaceState(null,"",location.pathname); openApp("join"); $("#jCode").value=j; lookup(); }
     await refresh();
   }catch(e){ if(!/sign in/i.test(e.message)) werr(e.message); }
@@ -229,7 +230,7 @@ function renderPortfolio(){
   $("#recScore").textContent=aj.score==null?"New":aj.score+" · "+aj.level;
   $("#recScoreNote").textContent=aj.score==null?"Builds as you pay on time":aj.onTime+" on time, "+aj.late+" late";
   $("#recFin").textContent=ME.finished; $("#recDef").textContent=ME.defaults; $("#recHb").textContent=ME.tier.pct+"%";
-  $("#acctBody").innerHTML='<ul style="padding:0"><li class="li"><span>Name<small>'+esc(ME.name||"-")+'</small></span></li><li class="li"><span>Email<small>'+esc(ME.email&&!ME.email.startsWith("demo:")?ME.email:"-")+'</small></span></li><li class="li"><span>Phone<small>'+esc(ME.phone||"-")+'</small></span></li><li class="li"><span>Bank<small>'+(ME.bank?esc(ME.bank.name)+" ending "+esc(ME.bank.account.slice(-4)):"Not added yet")+'</small></span><button class="pill outline sm" id="editBank" style="padding:8px 14px;font-size:14px">'+(ME.bank?"Change":"Add")+'</button></li><li class="li"><span>Appearance</span><div class="themeseg" id="themeSeg">'+["light","dark","auto"].map(t=>'<button data-t="'+t+'" aria-pressed="'+(themePref()===t)+'">'+t[0].toUpperCase()+t.slice(1)+'</button>').join("")+'</div></li><li class="li"><span>Chat connector<small>'+(ME.connector?"On. Claude can read your circles.":"Let Claude read your circles. Read only.")+'</small></span><button class="pill outline sm" id="connBtn" style="width:auto;padding:9px 16px">'+(ME.connector?"Manage":"Set up")+'</button></li></ul>';
+  $("#acctBody").innerHTML='<ul style="padding:0"><li class="li"><span>Name<small>'+esc(ME.name||"-")+'</small></span></li><li class="li"><span>Email<small>'+esc(ME.email&&!ME.email.startsWith("demo:")?ME.email:"-")+'</small></span></li><li class="li"><span>Phone<small>'+esc(ME.phone||"-")+'</small></span></li><li class="li"><span>Bank<small>'+(ME.bank?esc(ME.bank.name)+" ending "+esc(ME.bank.account.slice(-4)):"Not added yet")+'</small></span><button class="pill outline sm" id="editBank" style="padding:8px 14px;font-size:14px">'+(ME.bank?"Change":"Add")+'</button></li><li class="li"><span>Appearance</span><div class="themeseg" id="themeSeg">'+["light","dark","auto"].map(t=>'<button data-t="'+t+'" aria-pressed="'+(themePref()===t)+'">'+t[0].toUpperCase()+t.slice(1)+'</button>').join("")+'</div></li><li class="li"><span>Chat connector<small>'+(ME.connector?"On. Claude can read your circles.":"Let Claude read your circles and prepare payments you approve.")+'</small></span><button class="pill outline sm" id="connBtn" style="width:auto;padding:9px 16px">'+(ME.connector?"Manage":"Set up")+'</button></li></ul>';
   $("#connBtn").onclick=connectorSheet;
   $$("#themeSeg button").forEach(b=>b.onclick=()=>{ setTheme(b.dataset.t); $$("#themeSeg button").forEach(x=>x.setAttribute("aria-pressed",x===b)); });
   const eb=$("#editBank"); if(eb) eb.onclick=()=>bankSheet();
@@ -602,7 +603,7 @@ $("#activeCard").addEventListener("click",e=>{ const r=e.target.closest("[data-c
 /* ---------- chat connector: a private link that lets Claude read your circles (read only) ---------- */
 function connectorSheet(){
   const on=!!ME.connector;
-  sheet('<h2>Chat connector</h2><p class="alede">Make a private link, add it to Claude as a custom connector, then ask things like "who gets paid next in my circle?". It can only read. It cannot move money.</p>'+
+  sheet('<h2>Chat connector</h2><p class="alede">Make a private link, add it to Claude as a custom connector, then ask things like "who gets paid next in my circle?". It can read your circles and prepare a payment, but it can never pay. You approve every payment yourself here in AjoLabs.</p>'+
     '<div id="cnOut"></div><button class="pill block abtn" id="cnMake">'+(on?"Make a new link":"Make my link")+'</button>'+(on?'<button class="pill outline block abtn" id="cnOff">Turn off</button>':'')+'<button class="pill outline block abtn" data-close>Close</button>',
   ()=>{
     $("#cnMake").onclick=async()=>{ try{ const r=await api("/api/connector",{body:{}}); ME.connector=true; const url=location.origin+"/mcp/"+r.token;
@@ -611,4 +612,16 @@ function connectorSheet(){
       $("#cnMake").style.display="none"; renderPortfolio(); }catch(e){ toast(e.message); } };
     if($("#cnOff")) $("#cnOff").onclick=async()=>{ try{ await api("/api/connector",{body:{revoke:true}}); ME.connector=false; closeSheet(); renderPortfolio(); toast("Connector turned off"); }catch(e){ toast(e.message); } };
   });
+}
+
+/* ---------- approve a payment that Claude prepared ---------- */
+async function approveSheet(id){
+  let d; try{ d=await api("/api/approve/"+encodeURIComponent(id)); }catch(e){ return sheet('<div class="wdview"><h3>Cannot open this payment</h3><p>'+esc(e.message)+'</p><button class="pill block abtn" data-close>Close</button></div>'); }
+  const what=d.kind==="deposit"?"Deposit":"Round payment", short=d.balance<d.amount;
+  sheet('<h2>Approve this payment</h2><p class="alede">Claude prepared this for you. Nothing is paid until you tap Approve.</p><div class="card"><div class="row"><span>'+what+'</span><b>'+money(d.amount)+'</b></div><div class="row" style="margin-top:10px"><span>Circle</span><b>'+esc(d.circle)+'</b></div><div class="row" style="margin-top:10px"><span>Your balance</span><b>'+money(d.balance)+'</b></div></div>'+
+    (short?'<p class="muted" style="margin-top:10px">Your balance is short by '+money(d.amount-d.balance)+'. Fund it first, then ask Claude again.</p>':'')+
+    '<div id="apErr" style="color:var(--bad);font-size:14px;margin-top:10px"></div><button class="pill block abtn" id="apOk" '+(short?"disabled":"")+'>Approve and pay '+money(d.amount)+'</button><button class="pill outline block abtn" data-close>Cancel</button>',
+  ()=>{ $("#apOk").onclick=async()=>{ const b=$("#apOk"); b.disabled=true; b.textContent="Paying..."; try{ ME=await api("/api/approve/"+encodeURIComponent(id),{body:{}}); await refresh(); seenSync(); renderPortfolio();
+      sheet('<div class="wdview">'+BADGE+'<h3>Paid</h3><p>'+money(d.amount)+' sent to '+esc(d.circle)+'. Your receipt is saved.</p><button class="pill block abtn wdok" id="apDone">Nice one!</button></div>',()=>{ $("#apDone").onclick=closeSheet; });
+    }catch(e){ $("#apErr").textContent=e.message; b.disabled=false; b.textContent="Approve and pay "+money(d.amount); } }; });
 }
