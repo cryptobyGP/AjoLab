@@ -13,7 +13,8 @@ AjoLabs is a prototype running on Paga's sandbox with test money. No real money 
 - **Rules that protect the group.** A deposit from every member, a holdback from each payout that shrinks as people finish circles, a default pool, a countdown with a grace period, and settlement when someone misses a payment.
 - **Ajo Score.** On-time payments, finished circles, late payments and missed payments become a score and a level (New, Building, Reliable, Trusted, At risk). Members see only each other's level.
 - **Proof on Solana.** Each event (circle started, payment, payout, missed payment, circle completed) is added to a hash chain and written to Solana devnet as a memo. Memos carry no names, emails or phone numbers. Anyone can read a circle's record at `/api/proof/<circle id>`.
-- **Receipts.** Every payment and payout is saved in the app and emailed.
+- **Receipts.** Every payment and payout is saved in the app and emailed. Each receipt can be shared, or saved as an image or a PDF.
+- **Reminders.** Members get an email and an in-app notice before a payment is due and when it is late, and anyone can nudge unpaid members on WhatsApp.
 - **Wallet.** Connect a Phantom wallet (devnet) to fund your balance with test SOL.
 
 Full rules are on the [How it works](https://ajolab.onrender.com/how-it-works.html) page.
