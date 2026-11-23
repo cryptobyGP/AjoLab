@@ -229,7 +229,8 @@ function renderPortfolio(){
   $("#recScore").textContent=aj.score==null?"New":aj.score+" · "+aj.level;
   $("#recScoreNote").textContent=aj.score==null?"Builds as you pay on time":aj.onTime+" on time, "+aj.late+" late";
   $("#recFin").textContent=ME.finished; $("#recDef").textContent=ME.defaults; $("#recHb").textContent=ME.tier.pct+"%";
-  $("#acctBody").innerHTML='<ul style="padding:0"><li class="li"><span>Name<small>'+esc(ME.name||"-")+'</small></span></li><li class="li"><span>Email<small>'+esc(ME.email&&!ME.email.startsWith("demo:")?ME.email:"-")+'</small></span></li><li class="li"><span>Phone<small>'+esc(ME.phone||"-")+'</small></span></li><li class="li"><span>Bank<small>'+(ME.bank?esc(ME.bank.name)+" ending "+esc(ME.bank.account.slice(-4)):"Not added yet")+'</small></span><button class="pill outline sm" id="editBank" style="padding:8px 14px;font-size:14px">'+(ME.bank?"Change":"Add")+'</button></li><li class="li"><span>Appearance</span><div class="themeseg" id="themeSeg">'+["light","dark","auto"].map(t=>'<button data-t="'+t+'" aria-pressed="'+(themePref()===t)+'">'+t[0].toUpperCase()+t.slice(1)+'</button>').join("")+'</div></li></ul>';
+  $("#acctBody").innerHTML='<ul style="padding:0"><li class="li"><span>Name<small>'+esc(ME.name||"-")+'</small></span></li><li class="li"><span>Email<small>'+esc(ME.email&&!ME.email.startsWith("demo:")?ME.email:"-")+'</small></span></li><li class="li"><span>Phone<small>'+esc(ME.phone||"-")+'</small></span></li><li class="li"><span>Bank<small>'+(ME.bank?esc(ME.bank.name)+" ending "+esc(ME.bank.account.slice(-4)):"Not added yet")+'</small></span><button class="pill outline sm" id="editBank" style="padding:8px 14px;font-size:14px">'+(ME.bank?"Change":"Add")+'</button></li><li class="li"><span>Appearance</span><div class="themeseg" id="themeSeg">'+["light","dark","auto"].map(t=>'<button data-t="'+t+'" aria-pressed="'+(themePref()===t)+'">'+t[0].toUpperCase()+t.slice(1)+'</button>').join("")+'</div></li><li class="li"><span>Chat connector<small>'+(ME.connector?"On. Claude can read your circles.":"Let Claude read your circles. Read only.")+'</small></span><button class="pill outline sm" id="connBtn" style="width:auto;padding:9px 16px">'+(ME.connector?"Manage":"Set up")+'</button></li></ul>';
+  $("#connBtn").onclick=connectorSheet;
   $$("#themeSeg button").forEach(b=>b.onclick=()=>{ setTheme(b.dataset.t); $$("#themeSeg button").forEach(x=>x.setAttribute("aria-pressed",x===b)); });
   const eb=$("#editBank"); if(eb) eb.onclick=()=>bankSheet();
   if(ME.notes&&ME.notes.some(n=>!n.read)&&page==="portfolio") api("/api/me/read",{body:{}}).then(m=>{ME.notes=m.notes.map(n=>({...n,read:false}));}).catch(()=>{});
@@ -597,3 +598,17 @@ function renderHome(){
 $("#tileRc").onclick=()=>{ const e=$("#rcBody"); if(e) e.scrollIntoView({behavior:"smooth",block:"center"}); };
 $("#tileScore").onclick=()=>{ const e=$("#recScore"); if(e) e.scrollIntoView({behavior:"smooth",block:"center"}); };
 $("#activeCard").addEventListener("click",e=>{ const r=e.target.closest("[data-circle]"); if(r) openCircle(r.dataset.circle); });
+
+/* ---------- chat connector: a private link that lets Claude read your circles (read only) ---------- */
+function connectorSheet(){
+  const on=!!ME.connector;
+  sheet('<h2>Chat connector</h2><p class="alede">Make a private link, add it to Claude as a custom connector, then ask things like "who gets paid next in my circle?". It can only read. It cannot move money.</p>'+
+    '<div id="cnOut"></div><button class="pill block abtn" id="cnMake">'+(on?"Make a new link":"Make my link")+'</button>'+(on?'<button class="pill outline block abtn" id="cnOff">Turn off</button>':'')+'<button class="pill outline block abtn" data-close>Close</button>',
+  ()=>{
+    $("#cnMake").onclick=async()=>{ try{ const r=await api("/api/connector",{body:{}}); ME.connector=true; const url=location.origin+"/mcp/"+r.token;
+      $("#cnOut").innerHTML='<div class="card"><div style="font-size:13px;color:var(--soft);margin-bottom:8px">Your private link. It is shown once. Anyone with it can read your circles, so keep it to yourself.</div><div id="cnUrl" style="word-break:break-all;font-size:13px;user-select:all">'+esc(url)+'</div></div><button class="pill block abtn" id="cnCopy">Copy link</button>';
+      $("#cnCopy").onclick=()=>{ (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(url):Promise.reject()).then(()=>toast("Link copied"),()=>toast("Press and hold the link to copy it")); };
+      $("#cnMake").style.display="none"; renderPortfolio(); }catch(e){ toast(e.message); } };
+    if($("#cnOff")) $("#cnOff").onclick=async()=>{ try{ await api("/api/connector",{body:{revoke:true}}); ME.connector=false; closeSheet(); renderPortfolio(); toast("Connector turned off"); }catch(e){ toast(e.message); } };
+  });
+}

@@ -1,6 +1,6 @@
 // Zero-dependency server: API + webhook + static UI from ./public
 const http = require('http'), fs = require('fs'), path = require('path');
-const paga = require('./paga'), circle = require('./circle'), auth = require('./auth'), notify = require('./notify'), otp = require('./otp'), sol = require('./sol');
+const paga = require('./paga'), circle = require('./circle'), auth = require('./auth'), notify = require('./notify'), otp = require('./otp'), sol = require('./sol'), connector = require('./connector');
 const PORT = process.env.PORT || 3000;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2' };
 
@@ -16,7 +16,7 @@ async function who(req) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://x'); const p = url.pathname; const m = req.method;
+  const url = new URL(req.url, 'http://x'); const p = url.pathname; const m = req.method; let mt0;
   try {
     if (m === 'GET' && p === '/health') return send(res, 200, { ok: true, mode: paga.MODE, storage: require('./store').REMOTE ? 'upstash' : 'file' });
     if (m === 'GET' && p === '/api/config') return send(res, 200, { ...auth.config(), mode: paga.MODE, topup: paga.MODE === 'mock' || process.env.TEST_TOPUP === '1', emailReceipts: notify.enabled });
@@ -63,6 +63,19 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { status: 'SUCCESS' });
     }
 
+    // chat connector (MCP): the private link is the key. Read-only.
+    if ((mt0 = p.match(/^\/mcp(?:\/(ajo_[0-9a-f]{48}))?$/))) {
+      if (m === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'POST, GET, OPTIONS' }); return res.end(); }
+      const tok = mt0[1] || (req.headers.authorization || '').replace(/^Bearer /, ''), cu = connector.userByToken(tok);
+      const cors = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
+      if (!cu) { res.writeHead(401, cors); return res.end(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Invalid or revoked AjoLabs connector link' } })); }
+      if (m !== 'POST') { res.writeHead(405, { ...cors, Allow: 'POST' }); return res.end(JSON.stringify({ error: 'Use POST' })); }
+      const body = await json(req), batch = Array.isArray(body), outs = [];
+      for (const msg of (batch ? body : [body])) { const r = await connector.handle(msg, cu); if (r) outs.push(r); }
+      if (!outs.length) { res.writeHead(202, cors); return res.end(); }
+      res.writeHead(200, cors); return res.end(JSON.stringify(batch ? outs : outs[0]));
+    }
+
     // public: lets someone see a circle from an invite link before they sign in
     let mt;
     if ((mt = p.match(/^\/api\/preview\/(\w+)$/)) && m === 'GET') return send(res, 200, circle.preview(mt[1]));
@@ -70,6 +83,7 @@ const server = http.createServer(async (req, res) => {
 
     if (p.startsWith('/api/')) {
       const uid = await who(req);
+      if (m === 'POST' && p === '/api/connector') { const b = await json(req); if (b.revoke) { connector.revoke(uid); return send(res, 200, { on: false }); } return send(res, 200, { on: true, token: connector.create(uid) }); }
       if (m === 'GET' && p === '/api/banks') return send(res, 200, await paga.banks());
       if (m === 'GET' && p === '/api/me') return send(res, 200, circle.pub(circle.getUser(uid)));
       if (m === 'POST' && p === '/api/me') return send(res, 200, circle.profile(uid, await json(req)));

@@ -115,6 +115,22 @@ async function fill() {
     assert.ok(titles(live.members[2].uid).includes('Payment overdue'));
   }
 
+  { // chat connector: read-only, private link
+    const cn = require('./connector'), tok = cn.create(U(0));
+    assert.ok(/^ajo_[0-9a-f]{48}$/.test(tok) && cn.userByToken(tok).uid === U(0), 'token finds its owner');
+    assert.equal(cn.userByToken('ajo_' + '0'.repeat(48)), null, 'unknown token rejected');
+    const call = (name, args) => cn.handle({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args || {} } }, cn.userByToken(tok));
+    const init = await cn.handle({ jsonrpc: '2.0', id: 0, method: 'initialize', params: { protocolVersion: '2025-03-26' } }, cn.userByToken(tok));
+    assert.equal(init.result.serverInfo.name, 'AjoLabs');
+    assert.equal(await cn.handle({ jsonrpc: '2.0', method: 'notifications/initialized' }, cn.userByToken(tok)), null, 'notifications get no reply');
+    assert.ok(cn.listTools().every(t => t.annotations.readOnlyHint), 'every tool is read only');
+    const mine = JSON.parse((await call('my_circles')).result.content[0].text); assert.ok(mine.length >= 1, 'lists circles');
+    const st = JSON.parse((await call('circle_status', { circle: mine[0].name })).result.content[0].text); assert.ok(Array.isArray(st.members));
+    assert.ok(!JSON.stringify(st).includes('@x.com'), 'no email addresses leak to the assistant');
+    assert.ok((await call('circle_status', { circle: 'nope-nope' })).result.isError, 'bad name is a tool error');
+    cn.revoke(U(0)); assert.equal(cn.userByToken(tok), null, 'revoked link stops working');
+  }
+
   console.log(logs(c).map(x => '- ' + x).join('\n')); console.log('\nALL PASSED');
   require('fs').rmSync('./test-data.json', { force: true });
 })().catch(e => { console.error('FAILED:', e.message); process.exit(1); });

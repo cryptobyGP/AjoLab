@@ -40,7 +40,7 @@ function receipt(uid, rc) {
   notify.email(u, rc); return rc;
 }
 const pub = u => ({ uid: u.uid, email: u.email, name: u.name, phone: u.phone, bank: u.bank, wallet: u.wallet, finished: u.finished, defaults: u.defaults,
-  tier: tierOf(u), ajo: scoreOf(u), account: u.account || null, sol: u.sol || null, mandate: freshMandate(u) ? { status: u.mandate.status, bank: u.mandate.bank || null } : null, notes: u.notes, receipts: u.receipts });
+  tier: tierOf(u), ajo: scoreOf(u), account: u.account || null, connector: !!u.connector, sol: u.sol || null, mandate: freshMandate(u) ? { status: u.mandate.status, bank: u.mandate.bank || null } : null, notes: u.notes, receipts: u.receipts });
 
 // Paga reports the final result of a bank transfer. If it failed, the money goes back to the user's balance.
 function payoutResult(reference, code) {
