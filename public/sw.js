@@ -1,5 +1,5 @@
 // Keeps the sign-in code (React, Privy) and the app files on the phone so repeat visits open fast.
-const C = 'ajolabs-v19';
+const C = 'ajolabs-v20';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {

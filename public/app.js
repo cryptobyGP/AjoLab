@@ -394,6 +394,8 @@ setInterval(()=>{ if(appEl.classList.contains("on")&&page==="circle") renderTime
 function renderCircle(){
   const c=cur; fetchedAt=Date.now();
   $("#cTitle").textContent=c?c.name:"Circle";
+  $("#cKicker").textContent=c?"Circle"+(c.goal&&GOAL_LABEL[c.goal]?" · "+GOAL_LABEL[c.goal]:""):"Circle";
+  { const bb=$("#cBars"); if(!c){ bb.innerHTML=""; } else { const N=c.maxMembers,cr=c.status==="active"?c.round:c.status==="completed"?N+1:0; bb.style.gridTemplateColumns="repeat("+N+",minmax(0,1fr))"; bb.innerHTML=Array.from({length:N},(_,i)=>'<i class="'+(i<cr-1?"done":i===cr-1?"now":"")+'"></i>').join(""); } }
   $("#cStatus").textContent=!c?"Empty":c.status==="filling"?"Filling up":c.status==="deposits"?"Deposits":c.status==="completed"?"Finished":"Round "+c.round+" of "+c.maxMembers;
   let l="Start or join a circle, then come back here to watch it.";
   if(c){ const left=c.maxMembers-c.members.length;

@@ -272,11 +272,11 @@
           <button class="pill outline block abtn" id="pfWithdraw"><svg aria-hidden="true"><use href="#arrow"/></svg><span>Transfer to bank</span></button>
         </div></div>
         <div id="activeCard"></div>
-        <div class="tiles">
-          <button class="tile" data-page="create"><svg aria-hidden="true"><use href="#plus"/></svg><b>Start a circle</b><small>Rent, school fees, Detty December</small></button>
-          <button class="tile" data-page="join"><svg aria-hidden="true"><use href="#swap"/></svg><b>Join with a link</b><small>Got an invite? Paste it</small></button>
-          <button class="tile" id="tileRc"><svg aria-hidden="true"><use href="#check"/></svg><b>Receipts</b><small>Save as image or PDF</small></button>
-          <button class="tile" id="tileScore"><span class="tnum" id="tileScoreN">New</span><b id="tileScoreL">Ajo Score</b><small>Lower holdback on new circles</small></button>
+        <div class="htiles">
+          <button class="htile" data-page="create"><svg aria-hidden="true"><use href="#plus"/></svg><b>Start a circle</b><small>Rent, school fees, Detty December</small></button>
+          <button class="htile" data-page="join"><svg aria-hidden="true"><use href="#swap"/></svg><b>Join with a link</b><small>Got an invite? Paste it</small></button>
+          <button class="htile" id="tileRc"><svg aria-hidden="true"><use href="#check"/></svg><b>Receipts</b><small>Save as image or PDF</small></button>
+          <button class="htile" id="tileScore"><span class="tnum" id="tileScoreN">New</span><b id="tileScoreL">Ajo Score</b><small>Lower holdback on new circles</small></button>
         </div>
         <div class="proofstrip" id="proofStrip" hidden></div>
         <div class="pcard">
@@ -310,7 +310,8 @@
     </section>
 
     <section class="page" id="p-circle" aria-label="Circle">
-      <div class="row"><h2 id="cTitle">Circle</h2><span class="ptag" id="cStatus">Empty</span></div>
+      <div class="chead"><div class="hsub" id="cKicker">Circle</div><div class="row"><h2 id="cTitle">Circle</h2><span class="acTag" id="cStatus">Empty</span></div></div>
+      <div class="acBars cbars" id="cBars"></div>
       <p class="alede" id="cLede"></p>
       <div class="circlegrid">
         <div class="vizcol">
