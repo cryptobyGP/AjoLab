@@ -32,4 +32,4 @@ async function verifyPayment(signature, fromAddress) {
   const lamports = Number(ix.parsed.info.lamports);
   return { lamports, naira: Math.floor(lamports / 1e9 * SOL_USD * NGN_PER_USD) };
 }
-module.exports = { balances, verifyPayment, config };
+module.exports = { balances, verifyPayment, config, rpc };

@@ -1,5 +1,5 @@
 // End-to-end tests in mock mode: node test.js
-process.env.PAGA_MODE = 'mock'; process.env.DB_FILE = './test-data.json';
+process.env.PAGA_MODE = 'mock'; process.env.DB_FILE = './test-data.json'; process.env.SOL_ANCHOR = 'off';
 require('fs').rmSync('./test-data.json', { force: true });
 const assert = require('assert'); const circle = require('./circle');
 const names = ['Emem', 'Tunde', 'Amina', 'Nne', 'Yusuf'];
@@ -67,6 +67,37 @@ async function fill() {
   assert.equal(circle.pub(other).ajo.late, 0);
   assert.ok(circle.pub(tu).ajo.score < circle.pub(other).ajo.score, 'defaulter scores lower');
   assert.ok(circle.status(id2).members.every(x => typeof x.ajoLevel === 'string'));
+
+  // 4. On-chain proof: events are hash-chained, hold no personal details, and a tampered record is caught
+  const proof = require('./proof'), pf = circle.proofOf(id), kinds = pf.entries.map(e => e.kind);
+  assert.equal(pf.valid, true, 'chain verifies');
+  assert.equal(kinds[0], 'started'); assert.equal(kinds.filter(k => k === 'payment').length, 25, '5 members x 5 rounds'); assert.equal(kinds.filter(k => k === 'payout').length, 5); assert.equal(kinds.at(-1), 'completed');
+  assert.ok(!JSON.stringify(pf).match(/emem|tunde|@x\.com|0800000|GTBank/i), 'no personal details in the record');
+  assert.ok(circle.proofOf(id2).entries.some(e => e.kind === 'missed'), 'missed payment recorded');
+  const live = require('./store').db.circles[id]; live.chain[3].data = null; const keep = live.chain[3].d; live.chain[3].d = { round: 99 };
+  assert.equal(proof.verifyChain(live), false, 'edited record is caught'); live.chain[3].d = keep; assert.equal(proof.verifyChain(live), true);
+
+  // 5. Solana memo transaction: valid layout and a valid signature
+  assert.equal(proof.b58d(proof.MEMO_PROGRAM).length, 32, 'memo program id decodes to 32 bytes');
+  assert.equal(proof.b58e(proof.b58d(proof.MEMO_PROGRAM)), proof.MEMO_PROGRAM, 'base58 round trip');
+  const kp = proof.keypair(Buffer.alloc(32, 7)), bh = proof.b58e(Buffer.alloc(32, 9)), mt = proof.memoTx(kp, 'AjoLabs v1|test', bh);
+  assert.ok(require('crypto').verify(null, mt.message, require('crypto').createPublicKey({ key: Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), kp.pub]), format: 'der', type: 'spki' }), mt.sig), 'signature checks out');
+  assert.equal(mt.tx[0], 1); assert.equal(mt.tx.length, 1 + 64 + mt.message.length); assert.ok(mt.message.slice(-'AjoLabs v1|test'.length).toString() === 'AjoLabs v1|test');
+
+  // 6. Sending: a pretend Solana network. Records go out in order, a failure retries later, and confirmation is tracked
+  process.env.SOL_ANCHOR = 'on'; const sent = []; let failNext = true; const realFetch = global.fetch;
+  global.fetch = async (url, o) => { const b = JSON.parse(o.body), ok = r => ({ ok: true, json: async () => ({ result: r }) });
+    if (b.method === 'getBalance') return ok({ value: 2e9 });
+    if (b.method === 'getLatestBlockhash') return ok({ value: { blockhash: proof.b58e(Buffer.alloc(32, 3)) } });
+    if (b.method === 'sendTransaction') { if (failNext) { failNext = false; return { ok: true, json: async () => ({ error: { message: 'blockhash not found' } }) }; } const raw = Buffer.from(b.params[0], 'base64'); sent.push(raw); return ok(proof.b58e(raw.subarray(1, 65))); }
+    if (b.method === 'getSignatureStatuses') return ok({ value: b.params[0].map(() => ({ err: null, confirmationStatus: 'confirmed' })) });
+    throw new Error('unexpected rpc ' + b.method); };
+  const c3 = circle.proofOf(id2).entries.length; await proof.anchorPending();
+  assert.equal(sent.length, 0, 'first attempt failed and stopped'); await proof.anchorPending();
+  assert.ok(sent.length >= c3, 'retry sent the records'); const after = circle.proofOf(id2);
+  assert.ok(after.entries.every(e => e.sig && e.confirmed), 'every record has a signature and is confirmed');
+  assert.ok(sent.some(r => /AjoLabs v1\|/.test(r.toString('latin1'))), 'memo text is in the transaction');
+  global.fetch = realFetch; process.env.SOL_ANCHOR = 'off';
 
   console.log(logs(c).map(x => '- ' + x).join('\n')); console.log('\nALL PASSED');
   require('fs').rmSync('./test-data.json', { force: true });

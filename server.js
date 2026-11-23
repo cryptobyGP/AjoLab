@@ -66,6 +66,7 @@ const server = http.createServer(async (req, res) => {
     // public: lets someone see a circle from an invite link before they sign in
     let mt;
     if ((mt = p.match(/^\/api\/preview\/(\w+)$/)) && m === 'GET') return send(res, 200, circle.preview(mt[1]));
+    if ((mt = p.match(/^\/api\/proof\/(\w+)$/)) && m === 'GET') return send(res, 200, circle.proofOf(mt[1]));   // anyone can check a circle's record
 
     if (p.startsWith('/api/')) {
       const uid = await who(req);

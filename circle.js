@@ -1,6 +1,7 @@
 // The rules layer: circles, ledger, countdown, deposit, holdback, settlement. No Paga code in here.
 const paga = require('./paga');
 const notify = require('./notify');
+const proof = require('./proof');
 const { db, save, id } = require('./store');
 
 const FEE_BPS = 100;                 // 1% service fee (placeholder)
@@ -204,7 +205,7 @@ async function autoPay(cid) {
     catch (e) { console.error('auto-pay failed', cid, m.id, e.message); }
   }
 }
-async function autoTick() { for (const cid of Object.keys(db.circles)) { try { await autoPay(cid); } catch (e) { console.error('auto tick', e.message); } } }
+async function autoTick() { for (const cid of Object.keys(db.circles)) { try { await autoPay(cid); } catch (e) { console.error('auto tick', e.message); } } proof.anchorPending().catch(() => {}); }
 async function setAuto(cid, uid, on) {
   const c = get(cid), m = c.members.find(x => x.uid === uid); if (!m) throw new Error('You are not in this circle');
   m.auto = !!on; m.autoWarn = null; save(); if (m.auto) await autoPay(cid);
@@ -240,12 +241,14 @@ async function markPaid(reference) {
     const n = c.members.filter(x => x.deposit).length;
     log(c, `${m.name} paid the deposit (${n} of ${c.members.length})`);
     receipt(m.uid, { title: 'Deposit received', summary: `Your deposit for ${c.name} is held until the circle ends.`, amount: c.amount, reference, circleName: c.name });
-    if (n === c.members.length) { c.status = 'active'; c.startAt = now(c); log(c, 'All deposits in. Round 1 begins, 24h to fund.'); }
+    if (n === c.members.length) { c.status = 'active'; c.startAt = now(c); log(c, 'All deposits in. Round 1 begins, 24h to fund.'); proof.record(c, 'started', { members: c.members.length, amount: c.amount, cycleDays: c.cycleDays }); }
     save(); return { ok: true, deposits: n };
   }
   if (ref.round !== c.round || c.status !== 'active') throw new Error('payment is for an old round');
   if (m.paid) throw new Error('already paid or covered this round');
-  ref.done = true; m.paid = true; noteRound(m.uid, c, now(c) <= deadline(c));
+  const onTime = now(c) <= deadline(c);
+  ref.done = true; m.paid = true; noteRound(m.uid, c, onTime);
+  proof.record(c, 'payment', { round: c.round, seat: proof.refOf(c, m), amount: c.amount, onTime });
   const n = c.members.filter(x => x.paid).length;
   log(c, `${m.name} paid (${n} of ${c.members.length})`);
   receipt(m.uid, { title: 'Payment received', summary: `Your round ${c.round} payment to ${c.name} was received.`, amount: c.amount, reference, circleName: c.name });
@@ -270,6 +273,7 @@ async function runPayout(c) {
   const net = pot - fee - hb - short;
   c.pool += Math.floor(fee * POOL_SHARE / 100); to.hb += hb; to.hbTotal = hb;
   log(c, `Round ${c.round} complete. Pot ${ngn(pot)}, fee ${ngn(fee)}${hb ? `, holdback ${ngn(hb)} (${t.pct}%)` : ''}${short ? `, uncovered shortfall ${ngn(short)}` : ''}.`);
+  proof.record(c, 'payout', { round: c.round, seat: proof.refOf(c, to), pot, fee, holdback: hb, shortfall: short, net });
   await send(c, 'payout', to, net, 'Payout');
   // holdback comes back in equal parts, one per round, for everyone who has already received
   for (const m of c.members) {
@@ -283,7 +287,7 @@ async function runPayout(c) {
       if (m.deposit > 0) { const d = m.deposit; m.deposit = 0; await send(c, 'dep', m, d, 'Deposit returned'); }
       if (!m.defaulted) getUser(m.uid).finished++;
     }
-    c.status = 'completed'; log(c, 'Circle complete. Everyone has been paid.'); return;
+    c.status = 'completed'; log(c, 'Circle complete. Everyone has been paid.'); proof.record(c, 'completed', { rounds: N }); return;
   }
   c.round++; c.cycleStartAt = now(c); c.shortfall = 0;
   c.members.forEach(m => { m.paid = false; m.covered = false; });
@@ -302,6 +306,7 @@ async function settle(cid) {
     take('the default pool', c.pool, v => (c.pool = v));
     if (need > 0) { c.shortfall += need; parts.push(`${ngn(need)} uncovered`); }
     m.paid = true; m.covered = true; m.defaulted = true; getUser(m.uid).defaults++;
+    proof.record(c, 'missed', { round: c.round, seat: proof.refOf(c, m), amount: c.amount });
     receipt(m.uid, { title: 'Missed payment', summary: `You missed round ${c.round} of ${c.name}. It was covered and a default mark was added.`, circleName: c.name, status: 'Default' });
     log(c, `${m.name} missed round ${c.round}. Covered: ${parts.join(', ')}. Default mark added.`);
   }
@@ -321,8 +326,8 @@ function status(cid, uid) {
   const to = active ? c.members[c.round - 1] : null, N = c.members.length;
   const pot = c.amount * c.maxMembers, fee = Math.floor(pot * FEE_BPS / 10000);
   const pct = to ? tier(to.uid).pct : 0, hb = to ? Math.floor(c.amount * (N - c.round) * pct / 100) : 0;
-  const { shift, owner, ...rest } = c;
-  return { ...rest, isOwner: owner === uid, myId: (c.members.find(m => m.uid === uid) || {}).id || null, pot, fee, pool: c.pool,
+  const { shift, owner, chain, ...rest } = c;
+  return { ...rest, proof: proof.summary(c), isOwner: owner === uid, myId: (c.members.find(m => m.uid === uid) || {}).id || null, pot, fee, pool: c.pool,
     members: c.members.map(m => ({ id: m.id, name: m.name, slot: m.slot, paid: m.paid, deposit: m.deposit, auto: !!m.auto, hb: m.hb, defaulted: m.defaulted, tierPct: tier(m.uid).pct, tierLabel: tier(m.uid).label, ajoLevel: scoreOf(getUser(m.uid)).level, you: m.uid === uid })),
     deadline: active ? deadline(c) : null, graceEnd: active ? graceEnd(c) : null, now: now(c), canSettle: canSettle(c),
     receiver: to ? to.name : null, receiverHoldback: hb, receiverPct: pct, receiverNet: active ? pot - fee - hb - c.shortfall : null };
@@ -385,4 +390,4 @@ function creditWallet(uid, signature, naira, lamports) {
 }
 function unlinkWallet(uid) { const u = getUser(uid); u.sol = null; save(); return pub_(u); }
 const pub_ = u => pub(u);
-module.exports = { creditWallet, linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
+module.exports = { proofOf: cid => proof.publicChain(get(cid)), creditWallet, linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };

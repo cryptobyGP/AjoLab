@@ -232,6 +232,15 @@ function renderPortfolio(){
   const eb=$("#editBank"); if(eb) eb.onclick=()=>bankSheet();
   if(ME.notes&&ME.notes.some(n=>!n.read)&&page==="portfolio") api("/api/me/read",{body:{}}).then(m=>{ME.notes=m.notes.map(n=>({...n,read:false}));}).catch(()=>{});
 }
+/* ---------- proof on Solana: each payment and payout is also written to Solana devnet, where nobody can edit it ---------- */
+function proofCard(c){
+  const p=c.proof; if(!p||!p.total) return "";
+  const names={started:"Circle started",payment:"Payment",payout:"Payout",missed:"Missed payment",completed:"Circle completed"};
+  const rows=p.last.map(e=>{
+    const tag=e.sig?'<a href="https://explorer.solana.com/tx/'+encodeURIComponent(e.sig)+'?cluster=devnet" style="text-decoration:underline" target="_blank" rel="noopener">'+(e.ok?"Confirmed":"Sent")+'</a>':"<span>"+(p.live?"Pending":"Saved")+"</span>";
+    return '<li class="li" style="font-size:14px"><span>'+(names[e.kind]||esc(e.kind))+(e.round?", round "+e.round:"")+'<small>'+ago(e.at)+" · "+esc(e.hash)+'</small></span><span class="tags">'+tag+"</span></li>"; }).join("");
+  return '<div class="pcard" style="margin:12px 0 0"><div class="pb"><h5>Proof on Solana</h5><p style="font-size:13px">Every payment and payout is also recorded on Solana (test network), where nobody can change it. '+p.confirmed+" of "+p.total+" confirmed"+(p.valid?"":". Record check failed")+'.</p><ul style="padding:0">'+rows+'</ul><p style="font-size:13px;margin-top:8px"><a href="/api/proof/'+esc(c.id)+'" style="text-decoration:underline" target="_blank" rel="noopener">View the full record</a></p></div></div>'; }
+
 function ago(t){const s=Math.floor((Date.now()-t)/1000); if(s<60)return"just now"; if(s<3600)return Math.floor(s/60)+" min ago"; if(s<86400)return Math.floor(s/3600)+" h ago"; return new Date(t).toLocaleDateString([],{day:"numeric",month:"short"});}
 $("#circlesBody").addEventListener("click",e=>{const r=e.target.closest("[data-circle]"); if(r) openCircle(r.dataset.circle);});
 document.addEventListener("click",e=>{ const r=e.target.closest("[data-rc]"); if(r&&appEl.contains(r)) receiptSheet(r.dataset.rc); });
@@ -390,7 +399,7 @@ function renderPanel(){
     el.innerHTML='<div class="pcard" style="margin:0"><div class="pb"><h5>'+money(locked)+' protecting this circle</h5><p>Every member put down a deposit. When someone receives the pot, a holdback is kept and released as they keep paying. If someone stops paying, settlement uses the holdback first, then the deposit, then the default pool.</p></div><div class="pb" style="padding-top:0"><ul style="padding:0">'+
       c.members.map(m=>'<li class="li"><span>'+esc(m.name)+'<small>Deposit '+money(m.deposit)+', holdback '+money(m.hb)+'</small></span><span class="tags">'+(m.defaulted?'<span class="ctag late">Default mark</span>':c.status==="completed"?'<span class="ctag paid">Returned</span>':'<span class="ctag wait">Locked</span>')+'</span></li>').join("")+
       '</ul></div></div><div class="pcard" style="margin:12px 0 0"><div class="pb"><h5>Default pool: '+money(c.pool)+'</h5><p>Funded by 25% of payout fees. It covers any gap left after a member\'s holdback and deposit. If it runs short, that round\'s payout is reduced.</p></div></div>'+
-      '<div class="pcard" style="margin:12px 0 0"><div class="pb"><h5>Activity</h5><ul style="padding:0">'+c.ledger.slice(-8).reverse().map(l=>'<li class="li" style="font-size:14px"><span>'+esc(l.text)+'<small>'+ago(l.at)+'</small></span></li>').join("")+'</ul></div></div>';
+      proofCard(c)+'<div class="pcard" style="margin:12px 0 0"><div class="pb"><h5>Activity</h5><ul style="padding:0">'+c.ledger.slice(-8).reverse().map(l=>'<li class="li" style="font-size:14px"><span>'+esc(l.text)+'<small>'+ago(l.at)+'</small></span></li>').join("")+'</ul></div></div>';
   }
 }
 let MOCK=false;
