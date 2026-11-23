@@ -642,3 +642,11 @@ img.paga{height:26px;width:26px;border-radius:7px;display:block}
 #payBtn,#depBtn{background:var(--green);color:#04150C;font-weight:700}
 #payBtn:disabled,#depBtn:disabled{background:var(--s3);color:var(--dim)}
 #p-circle .vizwrap{border-radius:28px;background:var(--s1);border:1px solid var(--line1)}
+
+/* ---------- welcome ---------- */
+.wbox .wtag{font-size:22px;font-weight:500;letter-spacing:-.01em;margin:10px 0 14px;color:var(--text)}
+.wchips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:22px}
+.wchips span{font-size:12px;padding:6px 11px;border-radius:99px;background:var(--pillgreen);color:var(--paidt)}
+.wcard{background:var(--s1);border:1px solid var(--line1);border-radius:26px;padding:18px;text-align:left}
+.wcard .or{margin:14px 0 2px}
+.wbox .wn{margin:16px 0 0;font-size:13px;color:var(--dim)}
