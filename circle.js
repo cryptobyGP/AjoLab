@@ -205,7 +205,29 @@ async function autoPay(cid) {
     catch (e) { console.error('auto-pay failed', cid, m.id, e.message); }
   }
 }
-async function autoTick() { for (const cid of Object.keys(db.circles)) { try { await autoPay(cid); } catch (e) { console.error('auto tick', e.message); } } proof.anchorPending().catch(() => {}); }
+// Reminders: one before the deadline and one when it passes, for each member who has not paid this round.
+const DUE_LEAD = c => c.round === 1 ? 6 * 3600e3 : DAY;
+const lagos = t => new Date(t).toLocaleString('en-NG', { timeZone: 'Africa/Lagos', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+function remind(c) {
+  if (c.status !== 'active') return 0;
+  const t = now(c), dl = deadline(c), url = (process.env.PUBLIC_URL || 'https://ajolab.onrender.com').replace(/\/$/, '') + '/?join=' + c.id; let sent = 0, changed = false;
+  for (const m of c.members) {
+    if (m.paid) continue;
+    const u = db.users[m.uid]; if (!u) continue;
+    let r = m.rem; if (!r || r.round !== c.round) { r = m.rem = { round: c.round }; changed = true; }
+    let title, text;
+    if (t > dl) { if (r.late) continue; r.late = r.due = true;
+      if (c.round === 1) { title = 'Payment overdue'; text = `The deadline for round 1 of ${c.name} has passed. Pay ${ngn(c.amount)} now so the circle can continue.`; }
+      else { title = 'Payment late'; text = `Round ${c.round} of ${c.name} was due ${lagos(dl)}. Pay ${ngn(c.amount)} by ${lagos(graceEnd(c))} to avoid a default mark.`; } }
+    else if (t >= dl - DUE_LEAD(c) && !r.due) { r.due = true; title = 'Payment due soon'; text = `Round ${c.round} of ${c.name}: pay ${ngn(c.amount)} by ${lagos(dl)}.`; }
+    else continue;
+    u.notes.unshift({ id: 'RM-' + id(3).toUpperCase(), at: Date.now(), title, text, read: false }); u.notes.length = Math.min(u.notes.length, 200);
+    notify.reminder(u, { title: title + ' · ' + c.name, summary: text, url }).catch(() => {}); sent++;
+  }
+  if (sent || changed) save();
+  return sent;
+}
+async function autoTick() { for (const cid of Object.keys(db.circles)) { try { await autoPay(cid); remind(get(cid)); } catch (e) { console.error('auto tick', e.message); } } proof.anchorPending().catch(() => {}); }
 async function setAuto(cid, uid, on) {
   const c = get(cid), m = c.members.find(x => x.uid === uid); if (!m) throw new Error('You are not in this circle');
   m.auto = !!on; m.autoWarn = null; save(); if (m.auto) await autoPay(cid);
@@ -390,4 +412,4 @@ function creditWallet(uid, signature, naira, lamports) {
 }
 function unlinkWallet(uid) { const u = getUser(uid); u.sol = null; save(); return pub_(u); }
 const pub_ = u => pub(u);
-module.exports = { proofOf: cid => proof.publicChain(get(cid)), creditWallet, linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
+module.exports = { remind, proofOf: cid => proof.publicChain(get(cid)), creditWallet, linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };

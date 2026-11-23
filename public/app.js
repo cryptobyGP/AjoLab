@@ -221,7 +221,7 @@ function renderPortfolio(){
   }
   $("#pfNext").textContent=money(next); $("#pfNextNote").innerHTML=note;
   const notes=ME.notes||[];
-  $("#noteBody").innerHTML=notes.length?notes.slice(0,6).map(n=>'<div class="nrow '+(n.read?"":"new")+'" data-rc="'+n.receipt+'"><b>'+esc(n.title)+'</b><small>'+esc(n.text)+' '+ago(n.at)+'</small></div>').join(""):'<p class="empty">Nothing yet. You will see payments and payouts here.</p>';
+  $("#noteBody").innerHTML=notes.length?notes.slice(0,6).map(n=>'<div class="nrow '+(n.read?"":"new")+'" '+(n.receipt?' data-rc="'+n.receipt+'"':'')+'><b>'+esc(n.title)+'</b><small>'+esc(n.text)+' '+ago(n.at)+'</small></div>').join(""):'<p class="empty">Nothing yet. You will see payments and payouts here.</p>';
   const rcs=ME.receipts||[];
   $("#rcBody").innerHTML=rcs.length?rcs.slice(0,8).map(r=>'<div class="nrow" data-rc="'+r.id+'"><div class="row"><b>'+esc(r.title)+'</b><span>'+(r.amount!=null?money(r.amount):"")+'</span></div><small>'+(r.circleName?esc(r.circleName)+", ":"")+ago(r.at)+'</small></div>').join(""):'<p class="empty">Receipts for every payment and transfer will show here.</p>';
   const aj=ME.ajo||{score:null,level:"New",onTime:0,late:0};
@@ -377,6 +377,7 @@ function renderPanel(){
     else {
       h+='<button class="pill block abtn" id="payBtn" '+(me.paid?"disabled":"")+'>'+(me.paid?"You have paid this round":"Pay "+money(c.amount))+'</button>';
       if(c.members.some(m=>!m.paid)) h+='<button class="pill block abtn" id="settleBtn" '+(c.canSettle?"":"disabled")+' style="background:var(--pillgreen);color:var(--mint)">'+(c.canSettle?"Run settlement (anyone can)":"Settlement opens after the grace period")+'</button>';
+      h+='<button class="pill outline block abtn sm" id="nudgeBtn">Nudge unpaid members on WhatsApp</button>';
       if(MOCK){ h+='<button class="pill outline block abtn sm" id="othersBtn">Demo: others pay</button>';
         const t=c.members.find(m=>!m.you&&!m.paid&&m.slot!==c.round); if(t&&c.round===1&&n>=4) h+='<button class="pill outline block abtn sm" id="missBtn">Demo: '+esc(t.name)+' will not pay this round</button>';
         h+='<button class="pill outline block abtn sm" id="skipBtn">Demo: skip past the deadline and grace</button>'; }
@@ -411,6 +412,7 @@ function bindPay(){
   if(B("fillBtn")) B("fillBtn").onclick=()=>act(()=>api("/api/dev/fill",{body:{id:c.id}}),"Sample members joined");
   if(B("depBtn")) B("depBtn").onclick=()=>pay("deposit");
   if(B("payBtn")) B("payBtn").onclick=()=>pay("pay");
+  if(B("nudgeBtn")) B("nudgeBtn").onclick=()=>{ const who=c.members.filter(m=>!m.paid).map(m=>m.name).join(", "); const d=new Date(c.deadline).toLocaleString("en-NG",{weekday:"short",day:"numeric",month:"short",hour:"numeric",minute:"2-digit"}); const msg='Reminder for our Ajo circle "'+c.name+'" on AjoLabs. Round '+c.round+' is waiting on: '+who+'. Deadline: '+d+'. Pay here: '+location.origin+"/?join="+c.id; window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank","noopener"); };
   if(B("autoBtn")) B("autoBtn").onclick=()=>act(async()=>{ const me=c.members.find(m=>m.you); const r=await api("/api/circles/"+c.id+"/autopay",{body:{on:!me.auto}}); try{ME=await api("/api/me");}catch(e){} return r; },"Auto-pay updated");
   if(B("othersBtn")) B("othersBtn").onclick=()=>act(()=>api("/api/dev/pay-others",{body:{id:c.id}}),"Others have paid");
   if(B("missBtn")) B("missBtn").onclick=()=>{ const t=c.members.find(m=>!m.you&&!m.paid&&m.slot!==c.round); act(()=>api("/api/dev/pay-others",{body:{id:c.id,except:t.slot}}),t.name+" has not paid"); };

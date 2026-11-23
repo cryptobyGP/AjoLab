@@ -99,6 +99,18 @@ async function fill() {
   assert.ok(sent.some(r => /AjoLabs v1\|/.test(r.toString('latin1'))), 'memo text is in the transaction');
   global.fetch = realFetch; process.env.SOL_ANCHOR = 'off';
 
+  // 7. Reminders: once before the deadline, once when late, never to someone who has paid, never twice
+  {
+    const rc = await fill(), live = require('./store').db.circles[rc.id], HOUR = 3600e3;
+    const titles = u => circle.getUser(u).notes.filter(n => /^Payment (due soon|overdue|late)/.test(n.title)).map(n => n.title);
+    assert.equal(circle.remind(live), 0, 'too early for a reminder');
+    live.shift = 19 * HOUR; assert.equal(circle.remind(live), 5, 'due-soon notice to all five'); assert.equal(circle.remind(live), 0, 'not sent twice');
+    await pay(rc, circle.status(rc.id).members[1]);                                   // one member pays
+    live.shift = 25 * HOUR; assert.equal(circle.remind(live), 4, 'late notice only to those who have not paid'); assert.equal(circle.remind(live), 0);
+    assert.deepEqual(titles(live.members[1].uid), ['Payment due soon'], 'the member who paid gets no late notice');
+    assert.ok(titles(live.members[2].uid).includes('Payment overdue'));
+  }
+
   console.log(logs(c).map(x => '- ' + x).join('\n')); console.log('\nALL PASSED');
   require('fs').rmSync('./test-data.json', { force: true });
 })().catch(e => { console.error('FAILED:', e.message); process.exit(1); });

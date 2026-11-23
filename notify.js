@@ -49,11 +49,19 @@ async function email(user, rc) {
   await sendMail({ from: FROM, to: [user.email], subject: `${ok ? '' : '[' + rc.status + '] '}${rc.title}${rc.amount != null ? ' · ' + ngn(rc.amount) : ''}`, html, text }, 'email');
 }
 
+async function reminder(user, r) {
+  if (!ON || !user.email || user.email.startsWith('demo:')) return;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#111"><h2 style="margin:0 0 6px">${esc(r.title)}</h2><p style="color:#555;margin:0 0 18px">${esc(r.summary)}</p>
+    <p><a href="${esc(r.url)}" style="display:inline-block;background:#3fd68b;color:#0b1a12;padding:12px 22px;border-radius:99px;text-decoration:none;font-weight:bold">Open AjoLabs</a></p>
+    <p style="color:#888;font-size:12px;margin-top:22px">AjoLabs runs on Paga’s sandbox with test money.</p></div>`;
+  await sendMail({ from: FROM, to: [user.email], subject: r.title, html, text: `${r.title}\n${r.summary}\n${r.url}` }, 'reminder email');
+}
+
 async function otp(user, code, purpose) {
   if (!ON || !user.email || user.email.startsWith('demo:')) return false;
   const what = purpose === 'mandate' ? 'connect your bank' : 'send money to your bank';
-  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#111"><h2 style="margin:0 0 6px">Your AjoLabs code</h2><p style="color:#555">Use this code to ${what}. It expires in 10 minutes. If this was not you, ignore this email. If it landed in Spam, tap “Not spam” so future codes reach your inbox.</p><p style="font-size:34px;letter-spacing:8px;font-weight:bold;margin:18px 0">${esc(code)}</p><p style="color:#888;font-size:12px">AjoLabs is a hackathon prototype running on test money.</p></div>`;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#111"><h2 style="margin:0 0 6px">Your AjoLabs code</h2><p style="color:#555">Use this code to ${what}. It expires in 10 minutes. If this was not you, ignore this email. If it landed in Spam, tap “Not spam” so future codes reach your inbox.</p><p style="font-size:34px;letter-spacing:8px;font-weight:bold;margin:18px 0">${esc(code)}</p><p style="color:#888;font-size:12px">AjoLabs runs on Paga’s sandbox with test money.</p></div>`;
   return sendMail({ from: FROM, to: [user.email], subject: `${code} is your AjoLabs code`, html, text: `Your AjoLabs code: ${code} (expires in 10 minutes)` }, 'otp email');
 }
 
-module.exports = { email, otp, enabled: ON };
+module.exports = { email, otp, reminder, enabled: ON };
