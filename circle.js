@@ -280,12 +280,12 @@ async function markPaid(reference) {
 }
 
 // Money owed to a member lands in their AjoLabs balance. They move it to their bank from the portfolio.
-async function send(c, kind, to, amount, note) {
+async function send(c, kind, to, amount, note, fee = 0) {
   if (amount <= 0) return;
   const u = getUser(to.uid); u.wallet += amount;
   log(c, `${note}: ${ngn(amount)} to ${to.name}`);
-  const T = { payout: ['Payout received', `Your round ${c.round} payout from ${c.name} is in your balance.`], hb: ['Holdback released', `A held-back part of your payout from ${c.name} is now in your balance.`], dep: ['Deposit returned', `Your deposit for ${c.name} is back in your balance.`] }[kind];
-  receipt(to.uid, { title: T[0], summary: T[1], amount, reference: `${kind}-${c.id}-r${c.round}-${to.id}`, circleName: c.name, kind });
+  const T = { payout: ['Payout received', `Your round ${c.round} payout from ${c.name} is in your balance.${fee ? ` A service fee of ${ngn(fee)} (1% of the pot) was taken.` : ''}`], hb: ['Holdback released', `A held-back part of your payout from ${c.name} is now in your balance.`], dep: ['Deposit returned', `Your deposit for ${c.name} is back in your balance.`] }[kind];
+  receipt(to.uid, { title: T[0], summary: T[1], amount, reference: `${kind}-${c.id}-r${c.round}-${to.id}`, circleName: c.name, kind, ...(fee ? { fee } : {}) });
 }
 
 async function runPayout(c) {
@@ -297,7 +297,7 @@ async function runPayout(c) {
   c.pool += Math.floor(fee * POOL_SHARE / 100); to.hb += hb; to.hbTotal = hb;
   log(c, `Round ${c.round} complete. Pot ${ngn(pot)}, fee ${ngn(fee)}${hb ? `, holdback ${ngn(hb)} (${t.pct}%)` : ''}${short ? `, uncovered shortfall ${ngn(short)}` : ''}.`);
   proof.record(c, 'payout', { round: c.round, seat: proof.refOf(c, to), pot, fee, holdback: hb, shortfall: short, net });
-  await send(c, 'payout', to, net, 'Payout');
+  await send(c, 'payout', to, net, 'Payout', fee);
   // holdback comes back in equal parts, one per round, for everyone who has already received
   for (const m of c.members) {
     if (m.slot >= c.round || m.hb <= 0) continue;

@@ -251,7 +251,7 @@ document.addEventListener("click",e=>{ const r=e.target.closest("[data-rc]"); if
 
 function receiptSheet(id){
   const r=(ME.receipts||[]).find(x=>x.id===id); if(!r) return;
-  const rows=[["Receipt",r.id],["Date",new Date(r.at).toLocaleString()],r.circleName&&["Circle",r.circleName],r.amount!=null&&["Amount",money(r.amount)],["Reference",r.reference||r.id],["Status",r.status]].filter(Boolean);
+  const rows=[["Receipt",r.id],["Date",new Date(r.at).toLocaleString()],r.circleName&&["Circle",r.circleName],r.amount!=null&&["Amount",money(r.amount)],r.fee&&["Service fee",money(r.fee)],["Reference",r.reference||r.id],["Status",r.status]].filter(Boolean);
   sheet('<h2>'+esc(r.title)+'</h2><p class="alede">'+esc(r.summary)+'</p><div class="card">'+rows.map((x,i)=>'<div class="row" style="'+(i?"margin-top:10px":"")+'"><span>'+esc(x[0])+'</span><b style="word-break:break-all;text-align:right">'+esc(x[1])+'</b></div>').join("")+'</div>'+(rcCanShare()?'<button class="pill block abtn" id="rcShare">Share receipt</button><button class="pill outline block abtn" id="rcImg">Save as image</button>':'<button class="pill block abtn" id="rcImg">Save as image</button>')+'<button class="pill outline block abtn" id="rcPdf">Save as PDF</button><button class="pill outline block abtn" data-close>Done</button>',
    ()=>{ if($("#rcShare")) $("#rcShare").onclick=()=>rcSave(r,"share"); $("#rcImg").onclick=()=>rcSave(r,"image"); $("#rcPdf").onclick=()=>rcSave(r,"pdf"); });
 }
