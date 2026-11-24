@@ -96,7 +96,7 @@ const server = http.createServer(async (req, res) => {
         const u = circle.getUser(uid); if (!u.sol) throw new Error('Connect a wallet first');
         const b = await json(req), v = await sol.verifyPayment(String(b.signature || ''), u.sol.address);
         if (v.pending) return send(res, 200, { pending: true });
-        return send(res, 200, { me: circle.creditWallet(uid, b.signature, v.naira, v.lamports), naira: v.naira });
+        return send(res, 200, { me: circle.creditWallet(uid, b.signature, v.naira, v.lamports, v.usdc), naira: v.naira, token: v.token });
       }
       if (m === 'GET' && p === '/api/wallet/config') return send(res, 200, sol.config());
       if (m === 'POST' && p === '/api/wallet') { const b = await json(req); return send(res, 200, b.unlink ? circle.unlinkWallet(uid) : circle.linkWallet(uid, b.address, b.message, b.signature)); }

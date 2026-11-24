@@ -496,30 +496,43 @@ async function loadUsd(){ const box=$("#pfUsd"); if(!box) return; if(!ME||!ME.so
   try{ const b=await api("/api/wallet/balances"); $("#pfUsdTot").textContent=usd(b.totalUsd); $("#pfUsdDet").textContent=b.usdc.toFixed(2)+" USDC · "+b.sol.toFixed(3)+" SOL (≈"+usd(b.solUsd)+")"; }
   catch(e){ $("#pfUsdTot").textContent="—"; $("#pfUsdDet").textContent="Could not read the wallet. Tap refresh."; } }
 $("#pfUsdRef").onclick=loadUsd;
+const SOL_LOGO='<svg class="tk" viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="slg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#9945FF"/><stop offset="1" stop-color="#14F195"/></linearGradient></defs><circle cx="20" cy="20" r="20" fill="#0d0d12"/><path d="M11 25.2c.2-.2.5-.3.8-.3h18.4c.5 0 .8.6.4 1l-3.2 3.2c-.2.2-.5.3-.8.3H8.2c-.5 0-.8-.6-.4-1zM11 10.8c.2-.2.5-.3.8-.3h18.4c.5 0 .8.6.4 1l-3.2 3.2c-.2.2-.5.3-.8.3H8.2c-.5 0-.8-.6-.4-1zM27.800 17.900c-.2-.2-.5-.3-.8-.3H8.600c-.5 0-.8.6-.4 1l3.200 3.200c.2.2.5.3.8.3h18.400c.5 0 .8-.6.4-1z" fill="url(#slg)"/></svg>';
+const USDC_LOGO='<svg class="tk" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="#2775CA"/><path d="M20.600 28.600v-1.800c2.200-.3 3.600-1.500 3.600-3.300 0-2.200-1.700-2.900-4-3.500-1.500-.4-2-.7-2-1.400 0-.6.600-1.100 1.600-1.100 1.100 0 1.800.4 2.200 1.300l1.900-.9c-.6-1.200-1.700-2-3.200-2.200v-1.700h-1.900v1.700c-2 .3-3.300 1.600-3.300 3.200 0 2.100 1.600 2.800 3.900 3.400 1.700.5 2.100.8 2.100 1.500 0 .7-.7 1.200-1.800 1.200-1.300 0-2.200-.6-2.600-1.700l-2 .9c.6 1.500 1.800 2.300 3.500 2.600v1.800z" fill="#fff"/><path d="M12.200 20c0-3.700 2.400-6.900 5.800-8v-2.100c-4.500 1.200-7.800 5.200-7.800 10.100s3.300 8.900 7.800 10.100V28c-3.400-1.100-5.800-4.300-5.800-8zm15.600 0c0 3.700-2.400 6.900-5.800 8v2.100c4.500-1.200 7.800-5.200 7.800-10.100s-3.300-8.900-7.800-10.100V12c3.400 1.100 5.800 4.300 5.800 8z" fill="#fff"/></svg>';
+const TOK={SOL:{logo:SOL_LOGO,name:"SOL"},USDC:{logo:USDC_LOGO,name:"USDC"}};
+// Send SOL or USDC (devnet) from the connected wallet to AjoLabs. The server checks it on Solana and adds the naira to your balance.
+async function solPay(cfg,token,amount,status){
+  const prov=walletProv(); if(!prov) throw new Error("Open AjoLabs in your wallet browser (Phantom or Brave Wallet) to pay.");
+  if(!ME.sol) throw new Error("Connect your Solana wallet first (Portfolio > Connect Solana wallet).");
+  status("Approve in your wallet...");
+  const W=await import("https://esm.sh/@solana/web3.js@1.95.3");
+  await prov.connect(); const from=prov.publicKey||(await prov.connect()).publicKey;
+  if(from.toString()!==ME.sol.address) throw new Error("Use the wallet you connected: "+ME.sol.address.slice(0,4)+"..."+ME.sol.address.slice(-4));
+  const conn=new W.Connection("https://api.devnet.solana.com","confirmed"), tx=new W.Transaction(), to=new W.PublicKey(cfg.treasury);
+  if(token==="USDC"){
+    const T=await import("https://esm.sh/@solana/spl-token@0.4.8?deps=@solana/web3.js@1.95.3");
+    const mint=new W.PublicKey(cfg.usdcMint), src=T.getAssociatedTokenAddressSync(mint,from), dst=T.getAssociatedTokenAddressSync(mint,to,true);
+    tx.add(T.createAssociatedTokenAccountIdempotentInstruction(from,dst,to,mint), T.createTransferCheckedInstruction(src,mint,dst,from,Math.round(amount*1e6),6));
+  } else tx.add(W.SystemProgram.transfer({fromPubkey:from,toPubkey:to,lamports:Math.round(amount*1e9)}));
+  tx.feePayer=from; tx.recentBlockhash=(await conn.getLatestBlockhash()).blockhash;
+  let signature;
+  if(prov.signTransaction){ const signed=await prov.signTransaction(tx); signature=await conn.sendRawTransaction(signed.serialize(),{skipPreflight:false}); }
+  else { const sent=await prov.signAndSendTransaction(tx); signature=sent.signature||sent; }
+  status("Confirming on Solana...");
+  for(let i=0;i<30;i++){ const r=await api("/api/wallet/fund",{body:{signature}}); if(!r.pending){ ME=r.me; return r.naira; } await new Promise(z=>setTimeout(z,2000)); }
+  throw new Error("Still confirming. Check your balance in a minute.");
+}
+const solErr=e=>/reject|denied|cancel/i.test(e.message||"")?"Wallet request cancelled":(/insufficient|0x1|debit an account|could not find account|invalid account/i.test(e.message||"")?"Not enough devnet funds in this wallet. Free test SOL: faucet.solana.com. Free test USDC: faucet.circle.com (choose Solana Devnet).":(e.message||"Wallet payment failed"));
 async function walletFundSheet(){
   let cfg; try{ cfg=await api("/api/wallet/config"); }catch(e){ return toast(e.message); }
   if(!cfg.treasury) return toast("Wallet payments are not switched on yet");
-  const rate=cfg.solUsd*cfg.ngnPerUsd;
-  sheet('<h2>Fund with wallet</h2><p class="alede">Send devnet SOL (test money) from your connected wallet. It becomes naira in your balance at a fixed demo rate: 1 SOL = '+usd(cfg.solUsd)+' = '+money(rate)+'.</p><label for="sAmt">Amount (SOL)</label><input id="sAmt" type="number" inputmode="decimal" step="0.01" value="0.1"><p class="muted" id="sEst" style="font-size:13px;margin:6px 0 0"></p><div id="sErr" style="color:var(--bad);font-size:14px;margin-top:10px"></div><button class="pill block abtn" id="sGo">Pay from my wallet</button><button class="pill outline block abtn" data-close>Cancel</button>',()=>{
-    const est=()=>{ $("#sEst").textContent="You will get about "+money(Math.floor((+$("#sAmt").value||0)*rate)); }; est(); $("#sAmt").oninput=est;
-    $("#sGo").onclick=async()=>{ const b=$("#sGo"), err=$("#sErr"); err.textContent=""; const sol=+$("#sAmt").value; if(!(sol>0)) return err.textContent="Enter an amount";
-      const prov=walletProv(); if(!prov) return err.textContent="Open AjoLabs in your wallet browser (Phantom or Brave Wallet) to pay.";
-      b.disabled=true; b.textContent="Approve in your wallet...";
-      try{
-        const W=await import("https://esm.sh/@solana/web3.js@1.95.3");
-        await prov.connect(); const from=prov.publicKey||(await prov.connect()).publicKey;
-        if(from.toString()!==ME.sol.address) throw new Error("Use the wallet you connected: "+ME.sol.address.slice(0,4)+"..."+ME.sol.address.slice(-4));
-        const conn=new W.Connection("https://api.devnet.solana.com","confirmed");
-        const tx=new W.Transaction().add(W.SystemProgram.transfer({fromPubkey:from,toPubkey:new W.PublicKey(cfg.treasury),lamports:Math.round(sol*1e9)}));
-        tx.feePayer=from; tx.recentBlockhash=(await conn.getLatestBlockhash()).blockhash;
-        let signature;
-        if(prov.signTransaction){ const signed=await prov.signTransaction(tx); signature=await conn.sendRawTransaction(signed.serialize(),{skipPreflight:false}); }   // wallet only signs, we send to devnet ourselves
-        else { const sent=await prov.signAndSendTransaction(tx); signature=sent.signature||sent; }
-        b.textContent="Confirming on Solana...";
-        for(let i=0;i<30;i++){ const r=await api("/api/wallet/fund",{body:{signature}}); if(!r.pending){ ME=r.me; closeSheet(); renderPortfolio(); seenSync(); return toast(money(r.naira)+" added from your wallet"); } await new Promise(z=>setTimeout(z,2000)); }
-        throw new Error("Still confirming. Check your balance in a minute.");
-      }catch(e){ err.textContent=/reject|denied|cancel/i.test(e.message||"")?"Wallet request cancelled":(/insufficient|0x1|debit an account/i.test(e.message||"")?"Not enough devnet SOL in this wallet. Get free test SOL at faucet.solana.com (Devnet).":(e.message||"Wallet payment failed")); b.disabled=false; b.textContent="Pay from my wallet"; }
-    }; });
+  let tok="USDC"; const rate=t=>t==="USDC"?cfg.ngnPerUsd:cfg.solUsd*cfg.ngnPerUsd;
+  sheet('<h2>Fund with wallet</h2><p class="alede">Send devnet test money from your connected wallet. It becomes naira in your balance at a fixed demo rate.</p><div class="toks" id="sTok"><button data-t="USDC" aria-pressed="true">'+USDC_LOGO+'<span>USDC</span></button><button data-t="SOL" aria-pressed="false">'+SOL_LOGO+'<span>SOL</span></button></div><label for="sAmt" id="sLbl">Amount (USDC)</label><input id="sAmt" type="number" inputmode="decimal" step="0.01" value="5"><p class="muted" id="sEst" style="font-size:13px;margin:6px 0 0"></p><div id="sErr" style="color:var(--bad);font-size:14px;margin-top:10px"></div><button class="pill block abtn" id="sGo">Pay from my wallet</button><button class="pill outline block abtn" data-close>Cancel</button>',()=>{
+    const est=()=>{ $("#sLbl").textContent="Amount ("+tok+")"; $("#sEst").textContent="1 "+tok+" = "+money(rate(tok))+" (demo rate). You will get about "+money(Math.floor((+$("#sAmt").value||0)*rate(tok))); }; est(); $("#sAmt").oninput=est;
+    $$("#sTok button").forEach(b=>b.onclick=()=>{ tok=b.dataset.t; $$("#sTok button").forEach(x=>x.setAttribute("aria-pressed",x===b)); $("#sAmt").value=tok==="USDC"?5:0.1; est(); });
+    $("#sGo").onclick=async()=>{ const b=$("#sGo"), err=$("#sErr"); err.textContent=""; const amt=+$("#sAmt").value; if(!(amt>0)) return err.textContent="Enter an amount";
+      b.disabled=true;
+      try{ const n=await solPay(cfg,tok,amt,t=>b.textContent=t); closeSheet(); renderPortfolio(); seenSync(); toast(money(n)+" added from your wallet"); }
+      catch(e){ err.textContent=solErr(e); b.disabled=false; b.textContent="Pay from my wallet"; } }; });
 }
 function renderWallet(){ const t=$("#pfWalletTxt"); if(!t||!ME) return; const w=ME.sol; if(w){ if(!renderWallet.done||renderWallet.done!==w.address){ renderWallet.done=w.address; loadUsd(); } } else { renderWallet.done=null; loadUsd(); }
   t.innerHTML=w?'<span style="color:var(--mint)">&#9679;</span> '+esc(w.address.slice(0,4))+"..."+esc(w.address.slice(-4))+' · devnet':"Connect Solana wallet"; }
@@ -620,8 +633,15 @@ async function approveSheet(id){
   const what=d.kind==="deposit"?"Deposit":"Round payment", short=d.balance<d.amount;
   sheet('<h2>Approve this payment</h2><p class="alede">Claude prepared this for you. Nothing is paid until you tap Approve.</p><div class="card"><div class="row"><span>'+what+'</span><b>'+money(d.amount)+'</b></div><div class="row" style="margin-top:10px"><span>Circle</span><b>'+esc(d.circle)+'</b></div><div class="row" style="margin-top:10px"><span>Your balance</span><b>'+money(d.balance)+'</b></div></div>'+
     (short?'<p class="muted" style="margin-top:10px">Your balance is short by '+money(d.amount-d.balance)+'. Fund it first, then ask Claude again.</p>':'')+
-    '<div id="apErr" style="color:var(--bad);font-size:14px;margin-top:10px"></div><button class="pill block abtn" id="apOk" '+(short?"disabled":"")+'>Approve and pay '+money(d.amount)+'</button><button class="pill outline block abtn" data-close>Cancel</button>',
-  ()=>{ $("#apOk").onclick=async()=>{ const b=$("#apOk"); b.disabled=true; b.textContent="Paying..."; try{ ME=await api("/api/approve/"+encodeURIComponent(id),{body:{}}); await refresh(); seenSync(); renderPortfolio();
+    '<div id="apErr" style="color:var(--bad);font-size:14px;margin-top:10px"></div><button class="pill block abtn" id="apOk" '+(short?"disabled":"")+'>Approve and pay '+money(d.amount)+'</button><div class="orline"><span>or pay in Solana</span></div><div class="toks big" id="apTok"><button data-t="USDC">'+USDC_LOGO+'<span>Pay with USDC</span></button><button data-t="SOL">'+SOL_LOGO+'<span>Pay with SOL</span></button></div><p class="muted" style="font-size:12px;margin:8px 0 0">Devnet test money from your connected wallet. Demo rate: 1 USDC = '+money(1500)+'.</p><button class="pill outline block abtn" data-close>Cancel</button>',
+  ()=>{
+    $$("#apTok button").forEach(bt=>bt.onclick=async()=>{ const err=$("#apErr"); err.textContent=""; const t=bt.dataset.t; $$("#apTok button").forEach(x=>x.disabled=true);
+      try{ const cfg=await api("/api/wallet/config"); if(!cfg.treasury) throw new Error("Wallet payments are not switched on yet");
+        const need=d.amount, per=t==="USDC"?cfg.ngnPerUsd:cfg.solUsd*cfg.ngnPerUsd, units=t==="USDC"?Math.ceil(need/per*100)/100:Math.ceil(need/per*1e4)/1e4;
+        await solPay(cfg,t,units,s=>{ bt.querySelector("span").textContent=s; });
+        bt.querySelector("span").textContent="Paying the circle..."; ME=await api("/api/approve/"+encodeURIComponent(id),{body:{}}); await refresh(); seenSync(); renderPortfolio();
+        sheet('<div class="wdview">'+BADGE+'<h3>Paid with '+t+'</h3><p>'+money(d.amount)+' sent to '+esc(d.circle)+'. Your receipt is saved.</p><button class="pill block abtn wdok" id="apDone2">Nice one!</button></div>',()=>{ $("#apDone2").onclick=closeSheet; });
+      }catch(e){ err.textContent=solErr(e); $$("#apTok button").forEach(x=>x.disabled=false); bt.querySelector("span").textContent="Pay with "+t; } }); $("#apOk").onclick=async()=>{ const b=$("#apOk"); b.disabled=true; b.textContent="Paying..."; try{ ME=await api("/api/approve/"+encodeURIComponent(id),{body:{}}); await refresh(); seenSync(); renderPortfolio();
       sheet('<div class="wdview">'+BADGE+'<h3>Paid</h3><p>'+money(d.amount)+' sent to '+esc(d.circle)+'. Your receipt is saved.</p><button class="pill block abtn wdok" id="apDone">Nice one!</button></div>',()=>{ $("#apDone").onclick=closeSheet; });
     }catch(e){ $("#apErr").textContent=e.message; b.disabled=false; b.textContent="Approve and pay "+money(d.amount); } }; });
 }

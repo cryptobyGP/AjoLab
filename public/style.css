@@ -650,3 +650,13 @@ img.paga{height:26px;width:26px;border-radius:7px;display:block}
 .wcard{background:var(--s1);border:1px solid var(--line1);border-radius:26px;padding:18px;text-align:left}
 .wcard .or{margin:14px 0 2px}
 .wbox .wn{margin:16px 0 0;font-size:13px;color:var(--dim)}
+
+/* ---------- Solana token buttons ---------- */
+.tk{width:26px;height:26px;flex:none}
+.toks{display:flex;gap:10px;margin:6px 0 14px}
+.toks button{flex:1;display:flex;align-items:center;justify-content:center;gap:10px;font:inherit;font-weight:600;font-size:15px;padding:12px 10px;border-radius:99px;background:var(--s1);color:var(--text);border:1px solid var(--line2);cursor:pointer}
+.toks button[aria-pressed="true"]{border-color:var(--green);box-shadow:0 0 0 2px rgba(var(--grnrgb),.25)}
+.toks button:disabled{opacity:.6}
+.toks.big button{padding:14px 8px;font-size:14px}
+.orline{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:12px;margin:14px 0 6px}
+.orline:before,.orline:after{content:"";flex:1;height:1px;background:var(--line1)}

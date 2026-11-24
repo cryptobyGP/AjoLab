@@ -403,12 +403,12 @@ function linkWallet(uid, address, message, signatureB64) {
   save(); return pub_(u);
 }
 // Credit the naira balance for a verified on-chain payment. Each Solana signature can be used once.
-function creditWallet(uid, signature, naira, lamports) {
+function creditWallet(uid, signature, naira, lamports, usdc = 0) {
   const reference = 'sol-' + signature; const u = getUser(uid);
   if (db.refs[reference]) return pub(u);
   db.refs[reference] = { fund: true, done: true };
   u.wallet += naira;
-  receipt(uid, { title: 'Funded from wallet', summary: `${(lamports / 1e9).toFixed(4)} SOL (devnet) from your wallet became ${ngn(naira)} in your balance at the demo rate.`, amount: naira, reference, kind: 'fund' });
+  receipt(uid, { title: 'Funded from wallet', summary: `${usdc ? usdc.toFixed(2) + ' USDC' : (lamports / 1e9).toFixed(4) + ' SOL'} (devnet) from your wallet became ${ngn(naira)} in your balance at the demo rate.`, amount: naira, reference, kind: 'fund' });
   save(); return pub(u);
 }
 function unlinkWallet(uid) { const u = getUser(uid); u.sol = null; save(); return pub_(u); }

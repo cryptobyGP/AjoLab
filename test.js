@@ -145,6 +145,7 @@ async function fill() {
     cn.revoke(U(0)); assert.equal(cn.userByToken(tok), null, 'revoked link stops working');
   }
 
+  assert.ok(/SOLANA VERIFY OK/.test(require('child_process').execFileSync('node', ['test-sol.js']).toString()), 'Solana payment checks');
   console.log(logs(c).map(x => '- ' + x).join('\n')); console.log('\nALL PASSED');
   require('fs').rmSync('./test-data.json', { force: true });
 })().catch(e => { console.error('FAILED:', e.message); process.exit(1); });
