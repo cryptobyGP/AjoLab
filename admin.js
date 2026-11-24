@@ -3,8 +3,9 @@ const { db } = require('./store');
 const circle = require('./circle'), proof = require('./proof'), paga = require('./paga');
 
 const DAY = 86400000;
-const ids = () => (process.env.ADMIN_UIDS || '').split(',').map(s => s.trim()).filter(Boolean);
-const isAdmin = uid => ids().includes(uid);
+const bare = s => String(s).trim().replace(/^did:privy:/, '');
+const ids = () => (process.env.ADMIN_UIDS || '').split(',').map(bare).filter(Boolean);
+const isAdmin = uid => ids().includes(bare(uid));
 const real = u => !String(u.uid).startsWith('bot:');
 const lagosDay = t => new Date(t + 3600e3).toISOString().slice(0, 10);   // Lagos is UTC+1
 const mask = s => (s ? '…' + String(s).slice(-4) : null);
