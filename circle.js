@@ -413,4 +413,4 @@ function creditWallet(uid, signature, naira, lamports, usdc = 0) {
 }
 function unlinkWallet(uid) { const u = getUser(uid); u.sol = null; save(); return pub_(u); }
 const pub_ = u => pub(u);
-module.exports = { remind, proofOf: cid => proof.publicChain(get(cid)), creditWallet, linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
+module.exports = { nowOf: now, deadline, graceEnd, remind, proofOf: cid => proof.publicChain(get(cid)), creditWallet, linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };

@@ -1,6 +1,6 @@
 // Zero-dependency server: API + webhook + static UI from ./public
 const http = require('http'), fs = require('fs'), path = require('path');
-const paga = require('./paga'), circle = require('./circle'), auth = require('./auth'), notify = require('./notify'), otp = require('./otp'), sol = require('./sol'), connector = require('./connector');
+const paga = require('./paga'), circle = require('./circle'), auth = require('./auth'), notify = require('./notify'), otp = require('./otp'), sol = require('./sol'), connector = require('./connector'), admin = require('./admin');
 const PORT = process.env.PORT || 3000;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2' };
 
@@ -86,6 +86,13 @@ const server = http.createServer(async (req, res) => {
       if (m === 'POST' && p === '/api/connector') { const b = await json(req); if (b.revoke) { connector.revoke(uid); return send(res, 200, { on: false }); } return send(res, 200, { on: true, token: connector.create(uid) }); }
       if ((mt = p.match(/^\/api\/approve\/(\w+)$/)) && m === 'GET') return send(res, 200, connector.describe(uid, mt[1]));
       if ((mt = p.match(/^\/api\/approve\/(\w+)$/)) && m === 'POST') { await connector.approve(uid, mt[1]); return send(res, 200, circle.pub(circle.getUser(uid))); }
+      if (p.startsWith('/api/admin/')) {                                  // owner dashboard: read-only, only for ids listed in ADMIN_UIDS on Render
+        if (p === '/api/admin/me') return send(res, 200, { admin: admin.isAdmin(uid), uid });
+        if (!admin.isAdmin(uid)) return send(res, 403, { error: 'Not allowed' });
+        if (p === '/api/admin/overview') return send(res, 200, admin.overview());
+        if (p === '/api/admin/trace') return send(res, 200, admin.trace(url.searchParams.get('q')));
+        return send(res, 404, { error: 'not found' });
+      }
       if (m === 'GET' && p === '/api/banks') return send(res, 200, await paga.banks());
       if (m === 'GET' && p === '/api/me') return send(res, 200, circle.pub(circle.getUser(uid)));
       if (m === 'POST' && p === '/api/me') return send(res, 200, circle.profile(uid, await json(req)));
