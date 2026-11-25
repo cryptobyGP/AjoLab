@@ -98,6 +98,28 @@ function trace(q) {
   res.receipts = res.receipts.slice(0, 40); res.refs = res.refs.slice(0, 20); res.users = res.users.slice(0, 10); res.circles = res.circles.slice(0, 6); res.chain = res.chain.slice(0, 10);
   return res;
 }
+// Analytics for the chart: pick a range, get one number per bucket for every measure. Lagos time (UTC+1).
+function series(range) {
+  const OFF = 3600e3, t = Date.now(), users = Object.values(db.users).filter(real), circles = Object.values(db.circles), rc = allReceipts();
+  let size = DAY, n;
+  if (range === '1d') { size = 3600e3; n = 24; }
+  else if (range === '7d') n = 7; else if (range === '30d') n = 30;
+  else {
+    const first = Math.min(t, ...users.map(u => u.created || t), ...circles.map(c => c.created || t), ...rc.map(r => r.at));
+    n = Math.max(1, Math.ceil((t - first) / DAY) + 1); if (n > 90) { size = 7 * DAY; n = Math.ceil(n / 7); }
+  }
+  const endB = Math.floor((t + OFF) / size), start = endB - n + 1, M = ['users', 'circles', 'funded', 'withdrawn', 'payments', 'payouts', 'fees', 'failed'];
+  const out = { range, unit: size === 3600e3 ? 'hour' : size === DAY ? 'day' : 'week', labels: [], m: {} }; M.forEach(k => (out.m[k] = new Array(n).fill(0)));
+  const add = (k, at, v = 1) => { const i = Math.floor((at + OFF) / size) - start; if (i >= 0 && i < n) out.m[k][i] += v; };
+  for (let i = 0; i < n; i++) { const d = new Date((start + i) * size - OFF + OFF); out.labels.push(size === 3600e3 ? d.toISOString().slice(11, 13) + ':00' : d.toISOString().slice(5, 10)); }
+  users.forEach(u => add('users', u.created)); circles.forEach(c => add('circles', c.created));
+  for (const r of rc) {
+    if (r.status !== 'Successful') { add('failed', r.at); continue; }
+    if (r.k === 'fund') add('funded', r.at, r.amount); else if (r.k === 'withdraw') add('withdrawn', r.at, r.amount);
+    else if (r.k === 'deposit' || r.k === 'round') add('payments', r.at, r.amount); else if (r.k === 'payout') { add('payouts', r.at, r.amount); add('fees', r.at, r.fee); }
+  }
+  out.totals = Object.fromEntries(M.map(k => [k, out.m[k].reduce((a, b) => a + b, 0)])); return out;
+}
 // Empty = still filling, nobody but the creator, no money in, nothing written to Solana.
 const isEmpty = c => c.status === 'filling' && c.members.length <= 1 && !c.members.some(m => m.deposit || m.paid) && !(c.chain || []).length;
 const empties = () => Object.values(db.circles).filter(isEmpty).map(c => ({ id: c.id, name: c.name, created: c.created, owner: (db.users[c.owner] || {}).name || '' }));
@@ -106,4 +128,4 @@ function cleanup(ids) {
   for (const id of ids || []) { const c = db.circles[id]; if (c && isEmpty(c)) { delete db.circles[id]; for (const k of Object.keys(db.refs)) if (db.refs[k] && db.refs[k].cid === id) delete db.refs[k]; done.push(id); } }
   if (done.length) require('./store').save(); return { deleted: done.length };
 }
-module.exports = { empties, cleanup, isAdmin, overview, trace, problems };
+module.exports = { series, empties, cleanup, isAdmin, overview, trace, problems };

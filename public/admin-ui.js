@@ -23,14 +23,40 @@
       '<div class="sub" style="margin-top:8px">Totals come from receipts (the last 200 per user).</div>'+
       '<h3>Problems ('+o.problems.length+')</h3><div class="box">'+(o.problems.length?o.problems.map(p=>'<div class="row"><span>'+esc(p.text)+'<small>'+esc(p.area)+(p.ref?' · '+esc(p.ref):'')+'</small></span><span class="tag '+p.level+'">'+p.level+'</span></div>').join(""):'<span class="ok">Nothing wrong right now.</span>')+'</div>'+
       '<h3>Clean up</h3><div class="box" id="admEmp"><span class="sub">Checking…</span></div>'+
-      '<h3>Last 30 days</h3>'+chart("New users",s.users,s.days)+chart("New circles",s.circles,s.days)+chart("Money funded",s.funded,s.days,1)+chart("Paid into circles",s.payments,s.days,1)+chart("Sent to banks",s.withdrawn,s.days,1)+chart("Fees earned",s.fees,s.days,1)+chart("Failed items",s.failed,s.days)+
+      '<h3>Analytics</h3><div class="box" id="admAn"></div>'+
       '<h3>Solana proof</h3><div class="box"><div class="row"><span>Records<small>'+o.proof.confirmed+' of '+o.proof.total+' confirmed on devnet</small></span><span class="tag '+(o.proof.brokenChains?'high':'low')+'">'+(o.proof.brokenChains?o.proof.brokenChains+' broken':'chains ok')+'</span></div></div>'+
       '<h3>Latest activity</h3><div class="box">'+(o.recent.map(r=>'<div class="row"><span>'+esc(r.title)+' · '+esc(r.who)+'<small>'+T(r.at)+(r.circle?' · '+esc(r.circle):'')+' · '+esc(r.id)+'</small></span><b>'+(r.amount?N(r.amount):'')+'</b></div>').join("")||'<span class="sub">Nothing yet.</span>')+'</div>'+
       '<h3>Trace anything</h3><input id="admQ" placeholder="Receipt id, reference, circle id, email, name, wallet or Solana signature" autocomplete="off"><div id="admR" style="margin-top:12px"></div></div>';
       document.getElementById("admX").onclick=()=>el.classList.remove("on");
-      loadEmpties();
+      loadEmpties(); analytics();
       let tm; document.getElementById("admQ").oninput=e=>{clearTimeout(tm);tm=setTimeout(()=>trace(e.target.value),350);};
     }catch(e){ el.innerHTML='<div class="in"><button class="x" id="admX">Close</button><p>'+esc(e.message)+'</p></div>'; document.getElementById("admX").onclick=()=>el.classList.remove("on"); }
+  }
+  const pref=(k,d)=>{try{return localStorage.getItem(k)||d;}catch(e){return d;}}, setPref=(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}};
+  const METRICS=[["users","Users",0],["circles","Circles",0],["funded","Funded in",1],["payments","Paid into circles",1],["payouts","Paid out",1],["withdrawn","Sent to banks",1],["fees","Fees",1],["failed","Failed",0]];
+  function draw(vals,labels,style,money){
+    const W=640,H=200,L=8,R=8,Tp=14,B=22,pw=W-L-R,ph=H-Tp-B,mx=Math.max(1,...vals),n=vals.length,x=i=>L+(n===1?pw/2:i*pw/(n-1)),y=v=>Tp+ph-v/mx*ph;
+    let g='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+(Tp+ph)+'" y2="'+(Tp+ph)+'" stroke="var(--line2)"/><line x1="'+L+'" x2="'+(W-R)+'" y1="'+Tp+'" y2="'+Tp+'" stroke="var(--line1)" stroke-dasharray="3 4"/><text x="'+L+'" y="'+(Tp-3)+'" font-size="10" fill="var(--dim)">'+(money?N(mx):mx)+'</text>';
+    if(style==="bar"){ const bw=Math.max(2,pw/n*.7); vals.forEach((v,i)=>{ const cx=L+(i+.5)*pw/n; g+='<rect x="'+(cx-bw/2)+'" y="'+y(v)+'" width="'+bw+'" height="'+Math.max(1,Tp+ph-y(v))+'" rx="2" fill="var(--green)" opacity=".9"><title>'+labels[i]+': '+(money?N(v):v)+'</title></rect>'; }); }
+    else { const pts=vals.map((v,i)=>x(i)+","+y(v)).join(" "); g+='<polygon points="'+x(0)+","+(Tp+ph)+" "+pts+" "+x(n-1)+","+(Tp+ph)+'" fill="var(--green)" opacity=".12"/><polyline points="'+pts+'" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'+(n<=40?vals.map((v,i)=>'<circle cx="'+x(i)+'" cy="'+y(v)+'" r="3.5" fill="var(--green)"><title>'+labels[i]+': '+(money?N(v):v)+'</title></circle>').join(""):""); }
+    const step=Math.max(1,Math.ceil(n/6)); labels.forEach((l,i)=>{ if(i%step===0||i===n-1){ const cx=style==="bar"?L+(i+.5)*pw/n:x(i); g+='<text x="'+cx+'" y="'+(H-6)+'" font-size="10" text-anchor="middle" fill="var(--dim)">'+l+'</text>'; } });
+    return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="chart" style="display:block">'+g+'</svg>';
+  }
+  async function analytics(){
+    const box=document.getElementById("admAn"); if(!box) return;
+    let range=pref("adm-range","7d"), style=pref("adm-style","bar"), met=pref("adm-met","funded"), data=null;
+    const seg=(items,cur,k)=>'<div class="themeseg" style="margin:0">'+items.map(i=>'<button data-'+k+'="'+i[0]+'" aria-pressed="'+(cur===i[0])+'">'+i[1]+'</button>').join("")+'</div>';
+    async function load(){ box.style.opacity=.6; try{ data=await api("/api/admin/series?range="+range); }catch(e){ box.innerHTML='<span class="sub">'+esc(e.message)+'</span>'; return; } box.style.opacity=1; paint(); }
+    function paint(){
+      const m=METRICS.find(x=>x[0]===met)||METRICS[0], tot=data.totals;
+      box.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+seg([["1d","1 day"],["7d","1 week"],["30d","30 days"],["all","All"]],range,"r")+seg([["bar","Bars"],["line","Line"]],style,"s")+'</div>'+
+        '<div class="grid" style="margin-bottom:12px">'+METRICS.map(x=>'<button class="k" data-m="'+x[0]+'" style="text-align:left;color:inherit;font:inherit;cursor:pointer;'+(x[0]===m[0]?'border-color:var(--green)':'')+'"><span>'+x[1]+'</span><b style="font-size:17px">'+(x[2]?N(tot[x[0]]):tot[x[0]].toLocaleString())+'</b></button>').join("")+'</div>'+
+        '<div class="row" style="border:0;padding:0 0 6px"><span><b>'+m[1]+'</b><small>per '+data.unit+' · Lagos time</small></span></div>'+draw(data.m[m[0]],data.labels,style,m[2]);
+      box.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{range=b.dataset.r;setPref("adm-range",range);load();});
+      box.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{style=b.dataset.s;setPref("adm-style",style);paint();});
+      box.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{met=b.dataset.m;setPref("adm-met",met);paint();});
+    }
+    load();
   }
   async function loadEmpties(){
     const b=document.getElementById("admEmp"); if(!b) return;
