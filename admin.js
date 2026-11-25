@@ -98,4 +98,12 @@ function trace(q) {
   res.receipts = res.receipts.slice(0, 40); res.refs = res.refs.slice(0, 20); res.users = res.users.slice(0, 10); res.circles = res.circles.slice(0, 6); res.chain = res.chain.slice(0, 10);
   return res;
 }
-module.exports = { isAdmin, overview, trace, problems };
+// Empty = still filling, nobody but the creator, no money in, nothing written to Solana.
+const isEmpty = c => c.status === 'filling' && c.members.length <= 1 && !c.members.some(m => m.deposit || m.paid) && !(c.chain || []).length;
+const empties = () => Object.values(db.circles).filter(isEmpty).map(c => ({ id: c.id, name: c.name, created: c.created, owner: (db.users[c.owner] || {}).name || '' }));
+function cleanup(ids) {
+  const done = [];
+  for (const id of ids || []) { const c = db.circles[id]; if (c && isEmpty(c)) { delete db.circles[id]; for (const k of Object.keys(db.refs)) if (db.refs[k] && db.refs[k].cid === id) delete db.refs[k]; done.push(id); } }
+  if (done.length) require('./store').save(); return { deleted: done.length };
+}
+module.exports = { empties, cleanup, isAdmin, overview, trace, problems };

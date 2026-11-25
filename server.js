@@ -91,6 +91,8 @@ const server = http.createServer(async (req, res) => {
         if (!admin.isAdmin(uid)) return send(res, 403, { error: 'Not allowed' });
         if (p === '/api/admin/overview') return send(res, 200, admin.overview());
         if (p === '/api/admin/trace') return send(res, 200, admin.trace(url.searchParams.get('q')));
+        if (p === '/api/admin/empties') return send(res, 200, admin.empties());
+        if (m === 'POST' && p === '/api/admin/cleanup') return send(res, 200, admin.cleanup((await json(req)).ids));
         return send(res, 404, { error: 'not found' });
       }
       if (m === 'GET' && p === '/api/banks') return send(res, 200, await paga.banks());

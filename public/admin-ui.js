@@ -22,13 +22,26 @@
       '<h3>Money (test money)</h3><div class="grid">'+k("Fees earned",N(m.fees))+k("User balances",N(m.balances))+k("Deposits held",N(m.deposits))+k("Default pools",N(m.pools))+k("Funded in",N(m.funded))+k("Sent to banks",N(m.withdrawn))+k("Paid into circles",N(m.paidIn))+k("Paid out",N(m.paidOut))+'</div>'+
       '<div class="sub" style="margin-top:8px">Totals come from receipts (the last 200 per user).</div>'+
       '<h3>Problems ('+o.problems.length+')</h3><div class="box">'+(o.problems.length?o.problems.map(p=>'<div class="row"><span>'+esc(p.text)+'<small>'+esc(p.area)+(p.ref?' · '+esc(p.ref):'')+'</small></span><span class="tag '+p.level+'">'+p.level+'</span></div>').join(""):'<span class="ok">Nothing wrong right now.</span>')+'</div>'+
+      '<h3>Clean up</h3><div class="box" id="admEmp"><span class="sub">Checking…</span></div>'+
       '<h3>Last 30 days</h3>'+chart("New users",s.users,s.days)+chart("New circles",s.circles,s.days)+chart("Money funded",s.funded,s.days,1)+chart("Paid into circles",s.payments,s.days,1)+chart("Sent to banks",s.withdrawn,s.days,1)+chart("Fees earned",s.fees,s.days,1)+chart("Failed items",s.failed,s.days)+
       '<h3>Solana proof</h3><div class="box"><div class="row"><span>Records<small>'+o.proof.confirmed+' of '+o.proof.total+' confirmed on devnet</small></span><span class="tag '+(o.proof.brokenChains?'high':'low')+'">'+(o.proof.brokenChains?o.proof.brokenChains+' broken':'chains ok')+'</span></div></div>'+
       '<h3>Latest activity</h3><div class="box">'+(o.recent.map(r=>'<div class="row"><span>'+esc(r.title)+' · '+esc(r.who)+'<small>'+T(r.at)+(r.circle?' · '+esc(r.circle):'')+' · '+esc(r.id)+'</small></span><b>'+(r.amount?N(r.amount):'')+'</b></div>').join("")||'<span class="sub">Nothing yet.</span>')+'</div>'+
       '<h3>Trace anything</h3><input id="admQ" placeholder="Receipt id, reference, circle id, email, name, wallet or Solana signature" autocomplete="off"><div id="admR" style="margin-top:12px"></div></div>';
       document.getElementById("admX").onclick=()=>el.classList.remove("on");
+      loadEmpties();
       let tm; document.getElementById("admQ").oninput=e=>{clearTimeout(tm);tm=setTimeout(()=>trace(e.target.value),350);};
     }catch(e){ el.innerHTML='<div class="in"><button class="x" id="admX">Close</button><p>'+esc(e.message)+'</p></div>'; document.getElementById("admX").onclick=()=>el.classList.remove("on"); }
+  }
+  async function loadEmpties(){
+    const b=document.getElementById("admEmp"); if(!b) return;
+    try{
+      const l=await api("/api/admin/empties");
+      if(!l.length){ b.innerHTML='<span class="ok">No empty circles. All clean.</span>'; return; }
+      b.innerHTML='<div class="sub" style="margin-bottom:8px">'+l.length+' empty circle(s): only the creator inside, no money, nothing on Solana.</div>'+l.map(c=>'<div class="row"><span>'+esc(c.name)+'<small>'+esc(c.id)+' · '+esc(c.owner)+' · '+T(c.created)+'</small></span></div>').join("")+'<button class="x" id="admDel" style="position:static;float:none;margin-top:10px;width:100%">Delete these '+l.length+'</button>';
+      const btn=document.getElementById("admDel"); let armed=false;
+      btn.onclick=async()=>{ if(!armed){ armed=true; btn.textContent="Tap again to delete for good"; setTimeout(()=>{ armed=false; btn.textContent="Delete these "+l.length; },5000); return; }
+        btn.disabled=true; try{ const r=await api("/api/admin/cleanup",{body:{ids:l.map(c=>c.id)}}); toast("Deleted "+r.deleted); }catch(e){ toast(e.message); } open(); };
+    }catch(e){ b.innerHTML='<span class="sub">'+esc(e.message)+'</span>'; }
   }
   async function trace(q){
     const out=document.getElementById("admR"); if(q.trim().length<3){out.innerHTML="";return;}
