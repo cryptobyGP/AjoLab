@@ -626,8 +626,7 @@ img.paga{height:26px;width:26px;border-radius:7px;display:block}
 .htile .tnum{font-size:26px;font-weight:600;color:var(--mint);line-height:1}
 .proofstrip{display:flex;align-items:center;gap:10px;border-radius:99px;padding:12px 16px;background:var(--s1);border:1px solid var(--line1);font-size:13px;color:var(--soft);margin-bottom:16px}
 .proofstrip .dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none}
-#p-portfolio .bignum{font-weight:600;letter-spacing:-.03em}
-#pfBal{font-size:44px}
+#p-portfolio .bignum{font-weight:300;letter-spacing:-.04em}
 .pcard.gb.spot:first-of-type{background:linear-gradient(135deg,rgba(var(--grnrgb),.22),transparent 70%),var(--s1)}
 .proofstrip[hidden]{display:none}
 .htile svg{color:var(--mint)}
