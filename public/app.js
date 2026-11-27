@@ -501,8 +501,17 @@ async function fundSheet(need){
   });
 }
 $("#pfFund").onclick=()=>fundSheet();
-/* ---------- Solana wallet (Phantom, devnet) ---------- */
-function walletProv(){ return (window.phantom&&window.phantom.solana&&window.phantom.solana.isPhantom)?window.phantom.solana:(window.solana&&window.solana.isPhantom?window.solana:(window.braveSolana||null)); }
+/* ---------- Solana wallet (Phantom, Solflare, Backpack and others, devnet) ---------- */
+const WALLETS=[
+  {id:"phantom",name:"Phantom",get:()=>(window.phantom&&window.phantom.solana&&window.phantom.solana.isPhantom)?window.phantom.solana:(window.solana&&window.solana.isPhantom?window.solana:null)},
+  {id:"solflare",name:"Solflare",get:()=>(window.solflare&&window.solflare.isSolflare)?window.solflare:null},
+  {id:"backpack",name:"Backpack",get:()=>{ const b=window.backpack; return b?(b.solana&&b.solana.connect?b.solana:(b.connect?b:null)):null; }},
+  {id:"coinbase",name:"Coinbase Wallet",get:()=>window.coinbaseSolana||null},
+  {id:"trust",name:"Trust Wallet",get:()=>(window.trustwallet&&window.trustwallet.solana)||null},
+  {id:"brave",name:"Brave Wallet",get:()=>window.braveSolana||null}];
+const walletsFound=()=>WALLETS.map(w=>({...w,prov:(()=>{try{return w.get();}catch(e){return null;}})()})).filter(w=>w.prov);
+const walletPref=()=>{try{return localStorage.getItem("ajo-wallet")||"";}catch(e){return "";}};
+function walletProv(){ const f=walletsFound(); if(!f.length) return null; const p=walletPref(); return (f.find(w=>w.id===p)||f[0]).prov; }
 const usd=n=>"$"+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 async function loadUsd(){ const box=$("#pfUsd"); if(!box) return; if(!ME||!ME.sol){ box.style.display="none"; return; } box.style.display="";
   try{ const b=await api("/api/wallet/balances"); $("#pfUsdTot").textContent=usd(b.totalUsd); $("#pfUsdDet").textContent=b.usdc.toFixed(2)+" USDC · "+b.sol.toFixed(3)+" SOL (≈"+usd(b.solUsd)+")"; }
@@ -513,7 +522,7 @@ const USDC_LOGO='<svg class="tk" viewBox="0 0 40 40" aria-hidden="true"><circle 
 const TOK={SOL:{logo:SOL_LOGO,name:"SOL"},USDC:{logo:USDC_LOGO,name:"USDC"}};
 // Send SOL or USDC (devnet) from the connected wallet to AjoLabs. The server checks it on Solana and adds the naira to your balance.
 async function solPay(cfg,token,amount,status){
-  const prov=walletProv(); if(!prov) throw new Error("Open AjoLabs in your wallet browser (Phantom or Brave Wallet) to pay.");
+  const prov=walletProv(); if(!prov) throw new Error("Open AjoLabs in your Solana wallet's browser (Phantom, Solflare, Backpack...) to pay.");
   if(!ME.sol) throw new Error("Connect your Solana wallet first (Portfolio > Connect Solana wallet).");
   status("Approve in your wallet...");
   const W=await import("https://esm.sh/@solana/web3.js@1.95.3");
@@ -550,16 +559,21 @@ function renderWallet(){ const t=$("#pfWalletTxt"); if(!t||!ME) return; const w=
   t.innerHTML=w?'<span style="color:var(--mint)">&#9679;</span> '+esc(w.address.slice(0,4))+"..."+esc(w.address.slice(-4))+' · devnet':"Connect Solana wallet"; }
 $("#pfWallet").onclick=async()=>{
   if(ME&&ME.sol){ return sheet('<h2>Solana wallet</h2><p class="alede">Connected on <b>devnet</b> (test network).</p><div class="card"><div class="row"><span>Address</span><b style="font-size:12px;word-break:break-all;text-align:right">'+esc(ME.sol.address)+'</b></div></div><button class="pill outline block abtn" id="wOff">Disconnect wallet</button><button class="pill block abtn" data-close>Close</button>',()=>{ $("#wOff").onclick=async()=>{ try{ ME=await api("/api/wallet",{body:{unlink:true}}); closeSheet(); renderPortfolio(); toast("Wallet disconnected"); }catch(e){ toast(e.message); } }; }); }
-  const prov=walletProv();
-  if(!prov){ const here=encodeURIComponent(location.origin); return sheet('<h2>Connect a Solana wallet</h2><p class="alede">No wallet found in this browser. Open AjoLabs inside the <b>Phantom</b> app browser to connect.</p><a class="pill block abtn" style="text-align:center;text-decoration:none" href="https://phantom.app/ul/browse/'+here+'?ref='+here+'">Open in Phantom</a><button class="pill outline block abtn" data-close>Close</button>'); }
+  const found=walletsFound();
+  if(!found.length){ const here=encodeURIComponent(location.origin); return sheet('<h2>Connect a Solana wallet</h2><p class="alede">No wallet found in this browser. Open AjoLabs inside your wallet app browser, for example Phantom or Solflare. Backpack, Coinbase Wallet and Trust Wallet work too.</p><a class="pill block abtn" style="text-align:center;text-decoration:none" href="https://phantom.app/ul/browse/'+here+'?ref='+here+'">Open in Phantom</a><a class="pill outline block abtn" style="text-align:center;text-decoration:none" href="https://solflare.com/ul/v1/browse/'+here+'?ref='+here+'">Open in Solflare</a><button class="pill outline block abtn" data-close>Close</button>'); }
+  if(found.length===1) return connectWallet(found[0]);
+  sheet('<h2>Choose your wallet</h2><p class="alede">More than one Solana wallet is installed here.</p>'+found.map(w=>'<button class="pill outline block abtn" data-w="'+w.id+'">'+esc(w.name)+'</button>').join("")+'<button class="pill outline block abtn" data-close>Cancel</button>',()=>{ $$("[data-w]").forEach(b=>b.onclick=()=>connectWallet(found.find(w=>w.id===b.dataset.w))); });
+};
+async function connectWallet(w){
+  const prov=w.prov;
   try{
-    const r=await prov.connect(); const address=r.publicKey.toString();
+    const r=await prov.connect(); const address=(r&&r.publicKey?r.publicKey:prov.publicKey).toString();
     const message="AjoLabs: link wallet "+address+" to my account at "+Date.now();
     const sig=await prov.signMessage(new TextEncoder().encode(message),"utf8");
     let bin=""; new Uint8Array(sig.signature||sig).forEach(b=>bin+=String.fromCharCode(b));
-    ME=await api("/api/wallet",{body:{address,message,signature:btoa(bin)}}); renderPortfolio(); seenSync(); toast("Wallet connected (devnet)");
+    ME=await api("/api/wallet",{body:{address,message,signature:btoa(bin)}}); try{localStorage.setItem("ajo-wallet",w.id);}catch(e){} closeSheet(); renderPortfolio(); seenSync(); toast(w.name+" connected (devnet)");
   }catch(e){ toast(/reject|denied|cancel/i.test(e.message||"")?"Wallet request cancelled":(e.message||"Could not connect wallet")); }
-};
+}
 function renderMandate(){ const b=$("#pfMandate"),t=$("#pfMandateTxt"); if(!b||!ME) return; const m=ME.mandate;
   t.innerHTML=!m?PG+"Connect bank (direct debit)":m.status==="APPROVED"?PG+"Direct debit on"+(m.bank?" · "+esc(m.bank):""):m.status==="REJECTED"?PG+"Bank declined. Try again":PG+"Waiting for your bank...";
   b.disabled=!!(m&&m.status==="APPROVED"); }
