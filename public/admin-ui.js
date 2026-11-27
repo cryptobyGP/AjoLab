@@ -21,6 +21,7 @@
       '<div class="sub" style="margin-top:8px">Circles: '+(Object.keys(c).map(x=>c[x]+" "+x).join(" · ")||"none yet")+'</div>'+
       '<h3>Money (test money)</h3><div class="grid">'+k("Fees earned",N(m.fees))+k("User balances",N(m.balances))+k("Deposits held",N(m.deposits))+k("Default pools",N(m.pools))+k("Funded in",N(m.funded))+k("Sent to banks",N(m.withdrawn))+k("Paid into circles",N(m.paidIn))+k("Paid out",N(m.paidOut))+'</div>'+
       '<div class="sub" style="margin-top:8px">Totals come from receipts (the last 200 per user).</div>'+
+      '<h3>Payout wallet</h3><div class="box"><div class="row"><span>Sends SOL to users who withdraw to their wallet<small>'+esc(o.payoutWallet.address||o.payoutWallet.error||"")+'</small></span><b>'+(o.payoutWallet.sol||0).toFixed(3)+' SOL</b></div><div class="sub">Devnet only. If it runs low, send devnet SOL to the address above (faucet.solana.com).</div></div>'+
       '<h3>Problems ('+o.problems.length+')</h3><div class="box">'+(o.problems.length?o.problems.map(p=>'<div class="row"><span>'+esc(p.text)+'<small>'+esc(p.area)+(p.ref?' · '+esc(p.ref):'')+'</small></span><span class="tag '+p.level+'">'+p.level+'</span></div>').join(""):'<span class="ok">Nothing wrong right now.</span>')+'</div>'+
       '<h3>Clean up</h3><div class="box" id="admEmp"><span class="sub">Checking…</span></div>'+
       '<h3>Analytics</h3><div class="box" id="admAn"></div>'+

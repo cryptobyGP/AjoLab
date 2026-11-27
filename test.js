@@ -146,6 +146,7 @@ async function fill() {
   }
 
   { const pr = circle.getUser(U(0)).receipts.find(r => r.title === 'Payout received'); assert.ok(pr && pr.fee > 0 && /service fee/i.test(pr.summary), 'payout receipt shows the service fee'); }
+  assert.ok(/WALLET PAYOUT OK/.test(require('child_process').execFileSync('node', ['test-send.js']).toString()), 'Wallet payout checks');
   assert.ok(/SOLANA VERIFY OK/.test(require('child_process').execFileSync('node', ['test-sol.js']).toString()), 'Solana payment checks');
   console.log(logs(c).map(x => '- ' + x).join('\n')); console.log('\nALL PASSED');
   require('fs').rmSync('./test-data.json', { force: true });

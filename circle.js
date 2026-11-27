@@ -100,6 +100,39 @@ async function withdraw(uid, amount) {
   save(); return pub(u);
 }
 
+// Send naira from the balance to the user's connected Solana wallet, as devnet SOL at the fixed demo rate.
+async function withdrawToWallet(uid, amount) {
+  const sw = require('./solsend'), u = getUser(uid); amount = Math.floor(Number(amount));
+  if (!u.sol) throw new Error('Connect a wallet first');
+  if (!(amount >= 500)) throw new Error('Minimum transfer to a wallet is ₦500');
+  if (amount > u.wallet) throw new Error('Not enough in your balance');
+  const lamports = sw.toLamports(amount); if (lamports < 1000) throw new Error('That amount is too small');
+  if ((await sw.balance()) < lamports + sw.FEE) { sw.topUp(); throw new Error('Wallet payouts are being topped up. Please try again in a few minutes.'); }
+  const reference = 'wo-' + id(5); u.wallet -= amount; db.refs[reference] = { walletOut: true, uid, amount, lamports, to: u.sol.address, at: Date.now(), done: false }; save();
+  let sig; try { sig = await sw.send(u.sol.address, lamports); }
+  catch (e) { u.wallet += amount; delete db.refs[reference]; save(); throw new Error('Transfer failed, your money is still in your balance. ' + e.message); }
+  db.refs[reference].sig = sig; save();
+  for (let i = 0; i < 10; i++) { await new Promise(r => setTimeout(r, 2000)); const st = await sw.status(sig).catch(() => 'waiting'); if (st !== 'waiting') { await settleWalletOut(reference, st); break; } }
+  save(); return pub(u);
+}
+// Finish a wallet transfer once Solana has answered: tell the user, or give the money back if it failed.
+async function settleWalletOut(reference, st) {
+  const r = db.refs[reference]; if (!r || !r.walletOut || r.done) return; r.done = true;
+  const u = getUser(r.uid), sol = (r.lamports / 1e9).toFixed(4) + ' SOL', short = r.to.slice(0, 4) + '...' + r.to.slice(-4);
+  if (st === 'ok') receipt(r.uid, { title: 'Sent to wallet', summary: `${ngn(r.amount)} was sent to your wallet ${short} as ${sol} (devnet) at the demo rate.`, amount: r.amount, reference, kind: 'withdraw', sig: r.sig });
+  else { u.wallet += r.amount; receipt(r.uid, { title: 'Wallet transfer failed', summary: `Your ${ngn(r.amount)} transfer to your wallet did not go through. The money is back in your balance.`, amount: r.amount, reference, status: 'Failed', kind: 'withdraw' }); }
+  save();
+}
+// Called every minute: close wallet transfers that were still waiting. A transaction that is not found after 3 minutes can no longer land.
+async function reconcileWalletOut() {
+  const sw = require('./solsend');
+  for (const [ref, r] of Object.entries(db.refs)) {
+    if (!r.walletOut || r.done || !r.sig) continue;
+    const st = await sw.status(r.sig).catch(() => 'waiting');
+    if (st !== 'waiting') await settleWalletOut(ref, st); else if (Date.now() - r.at > 3 * 60000) await settleWalletOut(ref, 'failed');
+  }
+}
+
 /* ---------- trust tiers ---------- */
 function tierOf(u) {
   let pct = u.finished >= 3 ? 2 : u.finished >= 1 ? 5 : 10;
@@ -228,7 +261,7 @@ function remind(c) {
   if (sent || changed) save();
   return sent;
 }
-async function autoTick() { for (const cid of Object.keys(db.circles)) { try { await autoPay(cid); remind(get(cid)); } catch (e) { console.error('auto tick', e.message); } } proof.anchorPending().catch(() => {}); }
+async function autoTick() { reconcileWalletOut().catch(e => console.error('wallet transfers', e.message)); for (const cid of Object.keys(db.circles)) { try { await autoPay(cid); remind(get(cid)); } catch (e) { console.error('auto tick', e.message); } } proof.anchorPending().catch(() => {}); }
 async function setAuto(cid, uid, on) {
   const c = get(cid), m = c.members.find(x => x.uid === uid); if (!m) throw new Error('You are not in this circle');
   m.auto = !!on; m.autoWarn = null; save(); if (m.auto) await autoPay(cid);
@@ -413,4 +446,4 @@ function creditWallet(uid, signature, naira, lamports, usdc = 0) {
 }
 function unlinkWallet(uid) { const u = getUser(uid); u.sol = null; save(); return pub_(u); }
 const pub_ = u => pub(u);
-module.exports = { nowOf: now, deadline, graceEnd, remind, proofOf: cid => proof.publicChain(get(cid)), creditWallet, linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
+module.exports = { withdrawToWallet, nowOf: now, deadline, graceEnd, remind, proofOf: cid => proof.publicChain(get(cid)), creditWallet, linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };

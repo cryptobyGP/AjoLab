@@ -23,7 +23,10 @@ function allReceipts() {
   return out.sort((a, b) => b.at - a.at);
 }
 
-function overview() {
+async function payoutWallet() {
+  try { const sw = require('./solsend'); return { address: sw.wallet().address, sol: (await sw.balance()) / 1e9 }; } catch (e) { return { address: '', sol: 0, error: e.message }; }
+}
+async function overview() {
   const users = Object.values(db.users).filter(real), circles = Object.values(db.circles), rc = allReceipts(), t = Date.now();
   const by = {}; for (const c of circles) by[c.status] = (by[c.status] || 0) + 1;
   const sum = (arr, f) => arr.reduce((s, x) => s + (f(x) || 0), 0);
@@ -48,8 +51,9 @@ function overview() {
     if (r.k === 'fund') bump(s.funded, r.at, r.amount); else if (r.k === 'withdraw') bump(s.withdrawn, r.at, r.amount);
     else if (r.k === 'deposit' || r.k === 'round') bump(s.payments, r.at, r.amount); else if (r.k === 'payout') bump(s.fees, r.at, r.fee);
   }
+  const pw = await payoutWallet();
   return {
-    at: t, mode: paga.MODE, storage: require('./store').REMOTE ? 'upstash' : 'file',
+    payoutWallet: pw, at: t, mode: paga.MODE, storage: require('./store').REMOTE ? 'upstash' : 'file',
     users: { total: users.length, new7: users.filter(u => t - u.created < 7 * DAY).length, withBank: users.filter(u => u.bank).length, withWallet: users.filter(u => u.sol).length, withConnector: users.filter(u => u.connector).length, withAuto: circles.reduce((n, c) => n + c.members.filter(m => m.auto).length, 0) },
     circles: { total: circles.length, byStatus: by, members: sum(circles, c => c.members.length) },
     money, series: s, problems: problems(),
@@ -73,7 +77,7 @@ function problems() {
   }
   for (const u of Object.values(db.users)) { if (!real(u)) continue; if (u.wallet < 0) add('high', 'Money', `${u.name || u.email || u.uid} has a negative balance (${u.wallet}).`, u.uid); }
   for (const r of allReceipts().filter(r => r.status !== 'Successful' && t - r.at < 14 * DAY)) add(/transfer|debit/i.test(r.title) ? 'mid' : 'low', 'Receipts', `${r.title} for ${r.who}${r.amount ? ' (₦' + Number(r.amount).toLocaleString('en-NG') + ')' : ''}: ${r.status}.`, r.id);
-  for (const [ref, x] of Object.entries(db.refs)) if (x && x.withdraw && !x.refunded && x.pending && t - (x.at || t) > DAY) add('mid', 'Money', `Bank transfer ${ref} has had no result for over a day.`, ref);
+  for (const [ref, x] of Object.entries(db.refs)) if (x && x.walletOut && !x.done && t - (x.at || t) > 10 * 60e3) add('mid', 'Money', `Wallet transfer ${ref} (₦${Number(x.amount).toLocaleString('en-NG')}) has had no answer from Solana for over 10 minutes.`, ref);
   if (proof.lastError) add('mid', 'Proof', 'The Solana recorder reported: ' + proof.lastError, '');
   const rank = { high: 0, mid: 1, low: 2 }; return out.sort((a, b) => rank[a.level] - rank[b.level]);
 }

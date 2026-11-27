@@ -22,7 +22,7 @@ async function receiptCanvas(r){
   try{ await document.fonts.ready; }catch(e){}
   const FONT='"Poppins","Helvetica Neue",Arial,sans-serif', W=1080, P=80, IW=W-2*P, LH=54, RH=48;
   const ok=/^(successful|success|received)$/i.test(r.status||"Successful");
-  const rows=[["Receipt",r.id],["Date",new Date(r.at).toLocaleString("en-NG",{dateStyle:"medium",timeStyle:"short"})],r.circleName&&["Circle",r.circleName],r.fee&&["Service fee",money(r.fee)],["Reference",r.reference||r.id],["Status",r.status||"Successful"]].filter(Boolean);
+  const rows=[["Receipt",r.id],["Date",new Date(r.at).toLocaleString("en-NG",{dateStyle:"medium",timeStyle:"short"})],r.circleName&&["Circle",r.circleName],r.fee&&["Service fee",money(r.fee)],r.sig&&["Solana record",r.sig.slice(0,6)+"..."+r.sig.slice(-6)],["Reference",r.reference||r.id],["Status",r.status||"Successful"]].filter(Boolean);
   const cv=document.createElement("canvas"), ctx=cv.getContext("2d");
   ctx.font="400 38px "+FONT; const sum=rcWrap(ctx,r.summary||"",IW);
   ctx.font="500 34px "+FONT; const vals=rows.map(x=>rcWrap(ctx,x[1],IW-300));

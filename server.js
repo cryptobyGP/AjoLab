@@ -89,7 +89,7 @@ const server = http.createServer(async (req, res) => {
       if (p.startsWith('/api/admin/')) {                                  // owner dashboard: read-only, only for ids listed in ADMIN_UIDS on Render
         if (p === '/api/admin/me') return send(res, 200, { admin: admin.isAdmin(uid), uid });
         if (!admin.isAdmin(uid)) return send(res, 403, { error: 'Not allowed' });
-        if (p === '/api/admin/overview') return send(res, 200, admin.overview());
+        if (p === '/api/admin/overview') return send(res, 200, await admin.overview());
         if (p === '/api/admin/trace') return send(res, 200, admin.trace(url.searchParams.get('q')));
         if (p === '/api/admin/series') return send(res, 200, admin.series(url.searchParams.get('range')));
         if (p === '/api/admin/empties') return send(res, 200, admin.empties());
@@ -119,7 +119,7 @@ const server = http.createServer(async (req, res) => {
         if (!sent && paga.MODE !== 'mock') throw new Error('Could not send the code to your email. Try again.');
         return send(res, 200, { sent, testCode: sent ? undefined : code, email: u.email && !u.email.startsWith('demo:') ? u.email : '' });   // in test mode with no email service, the code is shown on screen
       }
-      if (m === 'POST' && p === '/api/withdraw') { const b = await json(req); otp.verify(uid, 'withdraw', b.otp); return send(res, 200, await circle.withdraw(uid, b.amount)); }
+      if (m === 'POST' && p === '/api/withdraw') { const b = await json(req); otp.verify(uid, 'withdraw', b.otp); return send(res, 200, b.to === 'wallet' ? await circle.withdrawToWallet(uid, b.amount) : await circle.withdraw(uid, b.amount)); }
       if (m === 'GET' && p === '/api/circles') return send(res, 200, circle.mine(uid));
       if (m === 'POST' && p === '/api/circles') return send(res, 201, circle.status(circle.createCircle(await json(req), uid).id, uid));
 
