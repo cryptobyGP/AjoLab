@@ -24,7 +24,7 @@ function allReceipts() {
 }
 
 async function payoutWallet() {
-  try { const sw = require('./solsend'); return { address: sw.wallet().address, sol: (await sw.balance()) / 1e9 }; } catch (e) { return { address: '', sol: 0, error: e.message }; }
+  try { const sw = require('./solsend'); return { address: sw.wallet().address, sol: (await sw.balance()) / 1e9, usdc: (await sw.usdcBalance()) / 1e6 }; } catch (e) { return { address: '', sol: 0, error: e.message }; }
 }
 async function overview() {
   const users = Object.values(db.users).filter(real), circles = Object.values(db.circles), rc = allReceipts(), t = Date.now();

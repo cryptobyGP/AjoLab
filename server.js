@@ -119,7 +119,7 @@ const server = http.createServer(async (req, res) => {
         if (!sent && paga.MODE !== 'mock') throw new Error('Could not send the code to your email. Try again.');
         return send(res, 200, { sent, testCode: sent ? undefined : code, email: u.email && !u.email.startsWith('demo:') ? u.email : '' });   // in test mode with no email service, the code is shown on screen
       }
-      if (m === 'POST' && p === '/api/withdraw') { const b = await json(req); otp.verify(uid, 'withdraw', b.otp); return send(res, 200, b.to === 'wallet' ? await circle.withdrawToWallet(uid, b.amount) : await circle.withdraw(uid, b.amount)); }
+      if (m === 'POST' && p === '/api/withdraw') { const b = await json(req); otp.verify(uid, 'withdraw', b.otp); return send(res, 200, b.to === 'wallet' ? await circle.withdrawToWallet(uid, b.amount, b.token) : await circle.withdraw(uid, b.amount)); }
       if (m === 'GET' && p === '/api/circles') return send(res, 200, circle.mine(uid));
       if (m === 'POST' && p === '/api/circles') return send(res, 201, circle.status(circle.createCircle(await json(req), uid).id, uid));
 

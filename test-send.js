@@ -1,12 +1,13 @@
 // Wallet payout: checks the transaction we sign is a correct SOL transfer, and the refund / success paths.
 process.env.PAGA_MODE = 'mock'; process.env.SOL_ANCHOR = 'off'; process.env.DB_FILE = require('os').tmpdir() + '/ajo-send-' + Date.now() + '.json';
 const assert = require('assert'), crypto = require('crypto');
-let sent = null, bal = 5e9, status = null, failSend = false;
+let tokenAccts = {}, sent = null, bal = 5e9, status = null, failSend = false;
 const proof = require('./proof'), BH = proof.b58e(crypto.randomBytes(32));
 global.fetch = async (u, o) => { const b = JSON.parse(o.body); let result = null;
   if (b.method === 'getBalance') result = { value: bal };
   else if (b.method === 'getLatestBlockhash') result = { value: { blockhash: BH } };
   else if (b.method === 'sendTransaction') { if (failSend) return { ok: true, json: async () => ({ error: { message: 'boom' } }) }; sent = Buffer.from(b.params[0], 'base64'); result = proof.b58e(sent.subarray(1, 65)); }
+  else if (b.method === 'getTokenAccountsByOwner') result = { value: (tokenAccts[b.params[0]] || []).map(x => ({ pubkey: x.address, account: { data: { parsed: { info: { tokenAmount: { amount: String(x.units) } } } } } })) };
   else if (b.method === 'getSignatureStatuses') result = { value: [status] };
   return { ok: true, json: async () => ({ result }) }; };
 const circle = require('./circle'), sw = require('./solsend'), { db } = require('./store');
@@ -27,6 +28,20 @@ const WALLET = proof.b58e(crypto.randomBytes(32));
   const pk = crypto.createPublicKey({ key: Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), from]), format: 'der', type: 'spki' });
   assert.ok(crypto.verify(null, msg, pk, sig), 'signature must verify');
   assert.equal(u.receipts[0].title, 'Sent to wallet'); assert.ok(u.receipts[0].sig);
+  // USDC to a wallet that has no USDC account yet: one transaction creates it and sends. Payout wallet holds 50 USDC.
+  const me = sw.wallet().address, SRC = proof.b58e(crypto.randomBytes(32)); tokenAccts[me] = [{ address: SRC, units: 50e6 }]; status = { confirmationStatus: 'confirmed' }; u.wallet = 100000;
+  await circle.withdrawToWallet('u1', 15000, 'USDC');
+  assert.equal(u.wallet, 85000); assert.equal(u.receipts[0].title, 'Sent to wallet'); assert.match(u.receipts[0].summary, /10\.00 USDC/);
+  let m2 = sent.subarray(65); assert.equal(m2[0], 1); assert.equal(m2[2], 5);          // 1 signer, 5 read-only unsigned accounts (owner, mint, system, token program, ata program)
+  const nk = m2[3], keys = []; for (let i = 0; i < nk; i++) keys.push(proof.b58e(m2.subarray(4 + 32 * i, 36 + 32 * i)));
+  assert.equal(keys[0], me); assert.ok(keys.includes(SRC) && keys.includes(WALLET) && keys.includes('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL') && keys.includes('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'));
+  assert.equal(m2[4 + 32 * nk + 32], 2);                                                 // two instructions: create account, transfer
+  const dAta = proof.b58e(sw.ataOf(proof.b58d(WALLET), proof.b58d('4zMMC9srt5Ri5X14GAgXhaHii3GfPPjkWQEwFYk7M2zz'))); assert.ok(keys.includes(dAta), 'new token account is the derived one');
+  // a wallet that already has a USDC account: no create step, one instruction
+  const EXIST = proof.b58e(crypto.randomBytes(32)); tokenAccts[WALLET] = [{ address: EXIST, units: 1 }];
+  await circle.withdrawToWallet('u1', 3000, 'USDC'); m2 = sent.subarray(65); assert.equal(m2[4 + 32 * m2[3] + 32], 1); assert.ok(proof.b58e(m2.subarray(4, 36)) === me);
+  // payout wallet has too little USDC: refused before any money is taken
+  tokenAccts[me] = [{ address: SRC, units: 10 }]; const before = u.wallet; await assert.rejects(() => circle.withdrawToWallet('u1', 3000, 'USDC'), /topped up/); assert.equal(u.wallet, before); tokenAccts = {}; u.wallet = 77500;
   // Solana says it failed: money comes back
   status = { err: { x: 1 } }; await circle.withdrawToWallet('u1', 5000);
   assert.equal(u.wallet, 77500); assert.equal(u.receipts[0].title, 'Wallet transfer failed');

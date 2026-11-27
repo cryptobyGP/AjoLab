@@ -101,15 +101,17 @@ async function withdraw(uid, amount) {
 }
 
 // Send naira from the balance to the user's connected Solana wallet, as devnet SOL at the fixed demo rate.
-async function withdrawToWallet(uid, amount) {
-  const sw = require('./solsend'), u = getUser(uid); amount = Math.floor(Number(amount));
+async function withdrawToWallet(uid, amount, token = 'SOL') {
+  const sw = require('./solsend'), u = getUser(uid); amount = Math.floor(Number(amount)); token = token === 'USDC' ? 'USDC' : 'SOL';
   if (!u.sol) throw new Error('Connect a wallet first');
   if (!(amount >= 500)) throw new Error('Minimum transfer to a wallet is ₦500');
   if (amount > u.wallet) throw new Error('Not enough in your balance');
-  const lamports = sw.toLamports(amount); if (lamports < 1000) throw new Error('That amount is too small');
-  if ((await sw.balance()) < lamports + sw.FEE) { sw.topUp(); throw new Error('Wallet payouts are being topped up. Please try again in a few minutes.'); }
-  const reference = 'wo-' + id(5); u.wallet -= amount; db.refs[reference] = { walletOut: true, uid, amount, lamports, to: u.sol.address, at: Date.now(), done: false }; save();
-  let sig; try { sig = await sw.send(u.sol.address, lamports); }
+  const lamports = token === 'SOL' ? sw.toLamports(amount) : 0, units = token === 'USDC' ? sw.toUnits(amount) : 0;
+  if (token === 'SOL' ? lamports < 1000 : units < 10000) throw new Error('That amount is too small');
+  if ((await sw.balance()) < (token === 'SOL' ? lamports : 0) + sw.FEE + (token === 'USDC' ? 2100000 : 0)) { sw.topUp(); throw new Error('Wallet payouts are being topped up. Please try again in a few minutes.'); }
+  if (token === 'USDC' && (await sw.usdcBalance()) < units) throw new Error('Wallet payouts in USDC are being topped up. Please try again later, or choose SOL.');
+  const reference = 'wo-' + id(5); u.wallet -= amount; db.refs[reference] = { walletOut: true, token, uid, amount, lamports, units, to: u.sol.address, at: Date.now(), done: false }; save();
+  let sig; try { sig = token === 'USDC' ? await sw.sendUsdc(u.sol.address, units) : await sw.send(u.sol.address, lamports); }
   catch (e) { u.wallet += amount; delete db.refs[reference]; save(); throw new Error('Transfer failed, your money is still in your balance. ' + e.message); }
   db.refs[reference].sig = sig; save();
   for (let i = 0; i < 10; i++) { await new Promise(r => setTimeout(r, 2000)); const st = await sw.status(sig).catch(() => 'waiting'); if (st !== 'waiting') { await settleWalletOut(reference, st); break; } }
@@ -118,7 +120,7 @@ async function withdrawToWallet(uid, amount) {
 // Finish a wallet transfer once Solana has answered: tell the user, or give the money back if it failed.
 async function settleWalletOut(reference, st) {
   const r = db.refs[reference]; if (!r || !r.walletOut || r.done) return; r.done = true;
-  const u = getUser(r.uid), sol = (r.lamports / 1e9).toFixed(4) + ' SOL', short = r.to.slice(0, 4) + '...' + r.to.slice(-4);
+  const u = getUser(r.uid), sol = r.token === 'USDC' ? (r.units / 1e6).toFixed(2) + ' USDC' : (r.lamports / 1e9).toFixed(4) + ' SOL', short = r.to.slice(0, 4) + '...' + r.to.slice(-4);
   if (st === 'ok') receipt(r.uid, { title: 'Sent to wallet', summary: `${ngn(r.amount)} was sent to your wallet ${short} as ${sol} (devnet) at the demo rate.`, amount: r.amount, reference, kind: 'withdraw', sig: r.sig });
   else { u.wallet += r.amount; receipt(r.uid, { title: 'Wallet transfer failed', summary: `Your ${ngn(r.amount)} transfer to your wallet did not go through. The money is back in your balance.`, amount: r.amount, reference, status: 'Failed', kind: 'withdraw' }); }
   save();
