@@ -4,6 +4,7 @@ const paga = require('./paga'), circle = require('./circle'), auth = require('./
 const PORT = process.env.PORT || 3000;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2' };
 
+const ASSET_V = (() => { try { const d = path.join(__dirname, 'public'); return Math.max(...fs.readdirSync(d).map(f => fs.statSync(path.join(d, f)).mtimeMs)).toString(36); } catch (e) { return Date.now().toString(36); } })();
 const send = (res, code, body, type = 'application/json') => { res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-cache' }); res.end(type === 'application/json' ? JSON.stringify(body) : body); };
 const readBody = req => new Promise(r => { let b = ''; req.on('data', d => { b += d; if (b.length > 1e6) req.destroy(); }); req.on('end', () => r(b)); });
 const json = async req => JSON.parse((await readBody(req)) || '{}');
@@ -148,7 +149,9 @@ const server = http.createServer(async (req, res) => {
     if (file.startsWith(root) && fs.existsSync(file) && fs.statSync(file).isFile()) {
       if (file === path.join(root, 'index.html')) {   // put the Privy app id in the page itself so sign-in starts loading immediately
         const id = JSON.stringify(auth.config().privyAppId || '').replace(/</g, '');
-        return send(res, 200, fs.readFileSync(file, 'utf8').replace('<head>', '<head><script>window.__PRIVY=' + id + '</script>'), 'text/html; charset=utf-8');
+        // our own scripts and styles get a version in their address, so a phone that saved an old copy asks for the new one
+        const html = fs.readFileSync(file, 'utf8').replace(/(src|href)="(\/[^"?]+\.(?:js|css))"/g, (m, a, u) => `${a}="${u}?v=${ASSET_V}"`);
+        return send(res, 200, html.replace('<head>', '<head><script>window.__PRIVY=' + id + '</script>'), 'text/html; charset=utf-8');
       }
       return send(res, 200, fs.readFileSync(file), TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream');
     }
