@@ -53,7 +53,7 @@ async function overview() {
   }
   const pw = await payoutWallet();
   return {
-    payoutWallet: pw, at: t, mode: paga.MODE, storage: require('./store').REMOTE ? 'upstash' : 'file',
+    payoutWallet: pw, fees: circle.feeStatus(), at: t, mode: paga.MODE, storage: require('./store').REMOTE ? 'upstash' : 'file',
     users: { total: users.length, new7: users.filter(u => t - u.created < 7 * DAY).length, withBank: users.filter(u => u.bank).length, withWallet: users.filter(u => u.sol).length, withConnector: users.filter(u => u.connector).length, withAuto: circles.reduce((n, c) => n + c.members.filter(m => m.auto).length, 0) },
     circles: { total: circles.length, byStatus: by, members: sum(circles, c => c.members.length) },
     money, series: s, problems: problems(),
