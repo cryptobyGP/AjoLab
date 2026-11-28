@@ -2,8 +2,8 @@
 (function(){
   const N=n=>"₦"+Number(n||0).toLocaleString("en-NG"), T=t=>new Date(t).toLocaleString("en-NG",{timeZone:"Africa/Lagos",day:"numeric",month:"short",hour:"numeric",minute:"2-digit"});
   const css='#adm{position:fixed;inset:0;z-index:90;background:var(--bg);color:var(--text);overflow:auto;padding:max(16px,env(safe-area-inset-top)) 16px 40px;display:none}#adm.on{display:block}#adm .in{max-width:900px;margin:0 auto}'+
-  '#adm h1{font-size:24px;margin:6px 0 2px}#adm h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:26px 0 10px}#adm .sub{color:var(--soft);font-size:13px}'+
-  '#adm .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}#adm .k{background:var(--panel);border:1px solid var(--line1);border-radius:16px;padding:14px}#adm .k b{display:block;font-size:22px;margin-top:4px}#adm .k span{font-size:12px;color:var(--soft)}'+
+  '#adm h1{font-size:30px;font-weight:300;letter-spacing:-.03em;margin:6px 0 4px}#adm h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:26px 0 10px}#adm .sub{color:var(--soft);font-size:13px}'+
+  '#adm .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}#adm .k{background:var(--panel);border:1px solid var(--line1);border-radius:16px;padding:14px}#adm .k b{display:block;font-size:26px;font-weight:300;letter-spacing:-.03em;line-height:1.1;margin-top:6px}#adm .k span{font-size:12px;color:var(--soft)}'+
   '#adm .box{background:var(--panel);border:1px solid var(--line1);border-radius:16px;padding:14px;margin-bottom:10px}#adm .row{display:flex;gap:10px;justify-content:space-between;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line1);font-size:14px}#adm .row:first-child{border-top:0}'+
   '#adm .row small{display:block;color:var(--dim);font-size:12px;margin-top:2px;word-break:break-all}#adm .tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap}#adm .high{background:#E5484D;color:#fff}#adm .mid{background:#F5A524;color:#1b1200}#adm .low{background:var(--s3);color:var(--soft)}'+
   '#adm input{width:100%;box-sizing:border-box;padding:13px 14px;border-radius:12px;border:1px solid var(--line2);background:var(--s1);color:var(--text);font-size:15px}#adm .bar{display:flex;align-items:flex-end;gap:2px;height:70px}#adm .bar i{flex:1;background:var(--green);border-radius:2px 2px 0 0;min-height:2px;opacity:.9}'+
@@ -51,7 +51,7 @@
     function paint(){
       const m=METRICS.find(x=>x[0]===met)||METRICS[0], tot=data.totals;
       box.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+seg([["1d","1 day"],["7d","1 week"],["30d","30 days"],["all","All"]],range,"r")+seg([["bar","Bars"],["line","Line"]],style,"s")+'</div>'+
-        '<div class="grid" style="margin-bottom:12px">'+METRICS.map(x=>'<button class="k" data-m="'+x[0]+'" style="text-align:left;color:inherit;font:inherit;cursor:pointer;'+(x[0]===m[0]?'border-color:var(--green)':'')+'"><span>'+x[1]+'</span><b style="font-size:17px">'+(x[2]?N(tot[x[0]]):tot[x[0]].toLocaleString())+'</b></button>').join("")+'</div>'+
+        '<div class="grid" style="margin-bottom:12px">'+METRICS.map(x=>'<button class="k" data-m="'+x[0]+'" style="text-align:left;color:inherit;font:inherit;cursor:pointer;'+(x[0]===m[0]?'border-color:var(--green)':'')+'"><span>'+x[1]+'</span><b style="font-size:20px">'+(x[2]?N(tot[x[0]]):tot[x[0]].toLocaleString())+'</b></button>').join("")+'</div>'+
         '<div class="row" style="border:0;padding:0 0 6px"><span><b>'+m[1]+'</b><small>per '+data.unit+' · Lagos time</small></span></div>'+draw(data.m[m[0]],data.labels,style,m[2]);
       box.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{range=b.dataset.r;setPref("adm-range",range);load();});
       box.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{style=b.dataset.s;setPref("adm-style",style);paint();});
