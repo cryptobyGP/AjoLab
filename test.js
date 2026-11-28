@@ -146,6 +146,10 @@ async function fill() {
   }
 
   { const pr = circle.getUser(U(0)).receipts.find(r => r.title === 'Payout received'); assert.ok(pr && pr.fee > 0 && /service fee/i.test(pr.summary), 'payout receipt shows the service fee'); }
+  { const f0 = circle.feeStatus(), owner = circle.getUser(U(0)), before = owner.wallet; assert.ok(f0.kept > 0 && f0.claimable === f0.kept, 'fees were kept');
+    const r = circle.claimFees(U(0)); assert.equal(r.claimed, f0.kept); assert.equal(owner.wallet, before + f0.kept);
+    assert.equal(circle.feeStatus().claimable, 0); assert.throws(() => circle.claimFees(U(0)), /Nothing to claim/, 'cannot claim twice');
+    assert.equal(owner.receipts[0].title, 'Fees claimed'); }
   assert.ok(/WALLET PAYOUT OK/.test(require('child_process').execFileSync('node', ['test-send.js']).toString()), 'Wallet payout checks');
   assert.ok(/SOLANA VERIFY OK/.test(require('child_process').execFileSync('node', ['test-sol.js']).toString()), 'Solana payment checks');
   console.log(logs(c).map(x => '- ' + x).join('\n')); console.log('\nALL PASSED');

@@ -100,6 +100,22 @@ async function withdraw(uid, amount) {
   save(); return pub(u);
 }
 
+// The owner's fee book. 'kept' is the part of each service fee that is AjoLabs' own (the rest goes into the circle's default pool).
+// First time it is read, past fees are counted in from the saved payout receipts.
+function feeBook() {
+  db.meta = db.meta || {};
+  if (!db.meta.fees) { let kept = 0; for (const u of Object.values(db.users)) for (const r of u.receipts || []) if (r.kind === 'payout' && r.fee && r.status === 'Successful') kept += r.fee - Math.floor(r.fee * POOL_SHARE / 100); db.meta.fees = { kept, claimed: 0, claims: [] }; save(); }
+  return db.meta.fees;
+}
+const feeStatus = () => { const f = feeBook(); return { kept: f.kept, claimed: f.claimed, claimable: Math.max(0, f.kept - f.claimed), poolShare: POOL_SHARE, claims: f.claims.slice(-10).reverse() }; };
+// Move everything claimable into the owner's own balance. The amount is worked out here, so a double tap cannot claim twice.
+function claimFees(uid) {
+  const f = feeBook(), amount = Math.max(0, f.kept - f.claimed); if (amount < 1) throw new Error('Nothing to claim yet');
+  const u = getUser(uid); f.claimed += amount; f.claims.push({ at: Date.now(), amount, uid }); u.wallet += amount;
+  receipt(uid, { title: 'Fees claimed', summary: `You claimed ${ngn(amount)} of AjoLabs service fees into your balance.`, amount, reference: 'fee-' + id(5), kind: 'claim' });
+  save(); return { claimed: amount, me: pub(u) };
+}
+
 // Send naira from the balance to the user's connected Solana wallet, as devnet SOL at the fixed demo rate.
 async function withdrawToWallet(uid, amount, token = 'SOL') {
   const sw = require('./solsend'), u = getUser(uid); amount = Math.floor(Number(amount)); token = token === 'USDC' ? 'USDC' : 'SOL';
@@ -329,7 +345,7 @@ async function runPayout(c) {
   const t = tier(to.uid), owedLater = c.amount * (N - c.round);
   const hb = Math.floor(owedLater * t.pct / 100), short = c.shortfall || 0;
   const net = pot - fee - hb - short;
-  c.pool += Math.floor(fee * POOL_SHARE / 100); to.hb += hb; to.hbTotal = hb;
+  const share = Math.floor(fee * POOL_SHARE / 100); c.pool += share; feeBook().kept += fee - share; to.hb += hb; to.hbTotal = hb;
   log(c, `Round ${c.round} complete. Pot ${ngn(pot)}, fee ${ngn(fee)}${hb ? `, holdback ${ngn(hb)} (${t.pct}%)` : ''}${short ? `, uncovered shortfall ${ngn(short)}` : ''}.`);
   proof.record(c, 'payout', { round: c.round, seat: proof.refOf(c, to), pot, fee, holdback: hb, shortfall: short, net });
   await send(c, 'payout', to, net, 'Payout', fee);
@@ -448,4 +464,4 @@ function creditWallet(uid, signature, naira, lamports, usdc = 0) {
 }
 function unlinkWallet(uid) { const u = getUser(uid); u.sol = null; save(); return pub_(u); }
 const pub_ = u => pub(u);
-module.exports = { withdrawToWallet, nowOf: now, deadline, graceEnd, remind, proofOf: cid => proof.publicChain(get(cid)), creditWallet, linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
+module.exports = { feeStatus, claimFees, withdrawToWallet, nowOf: now, deadline, graceEnd, remind, proofOf: cid => proof.publicChain(get(cid)), creditWallet, linkWallet, unlinkWallet, startMandate, mandateEvent, chargeDone, setAuto, autoTick, startCheckout, payoutResult, userByAccount, account, fund, payFromBalance, devFill, devPayOthers, upsertUser, profile, pub, getUser, withdraw, createCircle, joinCircle, requestPayment, markPaid, settle, skipTime, status, mine, preview };
