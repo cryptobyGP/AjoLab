@@ -124,6 +124,23 @@ function series(range) {
   }
   out.totals = Object.fromEntries(M.map(k => [k, out.m[k].reduce((a, b) => a + b, 0)])); return out;
 }
+// Revenue card: the owner's share of the service fees in a period, compared with the period just before it.
+function feeTrend(range) {
+  const OFF = 3600e3, t = Date.now(), pool = circle.feeStatus().poolShare, size = range === '1d' ? 3600e3 : DAY;
+  const n = range === '1d' ? 24 : range === '7d' ? 7 : range === '30d' ? 30 : 0;
+  const kept = [];  // [at, amount kept]
+  for (const r of allReceipts()) if (r.k === 'payout' && r.status === 'Successful' && r.fee) kept.push([r.at, r.fee - Math.floor(r.fee * pool / 100)]);
+  const total = kept.reduce((a, [, v]) => a + v, 0);
+  if (!n) { const first = Math.min(t, ...kept.map(k => k[0])), days = Math.min(90, Math.max(1, Math.ceil((t - first) / DAY) + 1)); return trendOf(kept, DAY, days, false, total); }
+  return trendOf(kept, size, n, true, total);
+}
+function trendOf(kept, size, n, compare, total) {
+  const OFF = 3600e3, t = Date.now(), endB = Math.floor((t + OFF) / size), start = endB - n + 1, vals = new Array(n).fill(0), labels = []; let prev = 0;
+  for (const [at, v] of kept) { const b = Math.floor((at + OFF) / size); if (b >= start && b <= endB) vals[b - start] += v; else if (compare && b >= start - n && b < start) prev += v; }
+  for (let i = 0; i < n; i++) labels.push(new Date((start + i) * size).toISOString().slice(size === 3600e3 ? 11 : 5, size === 3600e3 ? 13 : 10) + (size === 3600e3 ? ':00' : ''));
+  const cur = vals.reduce((a, b) => a + b, 0);
+  return { cur, prev: compare ? prev : null, pct: compare && prev > 0 ? Math.round((cur - prev) / prev * 1000) / 10 : null, isNew: compare && prev === 0 && cur > 0, total, vals, labels, compare };
+}
 // Empty = still filling, nobody but the creator, no money in, nothing written to Solana.
 const isEmpty = c => c.status === 'filling' && c.members.length <= 1 && !c.members.some(m => m.deposit || m.paid) && !(c.chain || []).length;
 const empties = () => Object.values(db.circles).filter(isEmpty).map(c => ({ id: c.id, name: c.name, created: c.created, owner: (db.users[c.owner] || {}).name || '' }));
@@ -132,4 +149,4 @@ function cleanup(ids) {
   for (const id of ids || []) { const c = db.circles[id]; if (c && isEmpty(c)) { delete db.circles[id]; for (const k of Object.keys(db.refs)) if (db.refs[k] && db.refs[k].cid === id) delete db.refs[k]; done.push(id); } }
   if (done.length) require('./store').save(); return { deleted: done.length };
 }
-module.exports = { series, empties, cleanup, isAdmin, overview, trace, problems };
+module.exports = { feeTrend, series, empties, cleanup, isAdmin, overview, trace, problems };

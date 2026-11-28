@@ -7,7 +7,7 @@
   '#adm .box{background:var(--panel);border:1px solid var(--line1);border-radius:16px;padding:14px;margin-bottom:10px}#adm .row{display:flex;gap:10px;justify-content:space-between;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line1);font-size:14px}#adm .row:first-child{border-top:0}'+
   '#adm .row small{display:block;color:var(--dim);font-size:12px;margin-top:2px;word-break:break-all}#adm .tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap}#adm .high{background:#E5484D;color:#fff}#adm .mid{background:#F5A524;color:#1b1200}#adm .low{background:var(--s3);color:var(--soft)}'+
   '#adm input{width:100%;box-sizing:border-box;padding:13px 14px;border-radius:12px;border:1px solid var(--line2);background:var(--s1);color:var(--text);font-size:15px}#adm .bar{display:flex;align-items:flex-end;gap:2px;height:70px}#adm .bar i{flex:1;background:var(--green);border-radius:2px 2px 0 0;min-height:2px;opacity:.9}'+
-  '#adm .x{position:sticky;top:0;float:right;border:1px solid var(--line2);background:var(--s1);color:var(--text);border-radius:99px;padding:8px 14px;font-size:14px}#adm .ok{color:var(--green)}#adm a{color:var(--mint)}#adm pre{white-space:pre-wrap;word-break:break-all;font-size:12px;color:var(--soft);margin:6px 0 0}';
+  '#adm .x{position:sticky;top:0;float:right;border:1px solid var(--line2);background:var(--s1);color:var(--text);border-radius:99px;padding:8px 14px;font-size:14px}#adm .ok{color:var(--green)}#adm a{color:var(--mint)}#adm .feecard{border-radius:26px;padding:20px}#adm .pillchg{font-size:13px;font-weight:600;padding:5px 11px;border-radius:99px;white-space:nowrap}#adm .pillchg.up{background:rgba(63,214,139,.16);color:var(--mint)}#adm .pillchg.down{background:rgba(229,72,77,.16);color:#F0777B}#adm .pillchg.flat{background:var(--s3);color:var(--soft)}#adm .arrowbtn{flex:none;width:46px;height:46px;border-radius:50%;border:0;background:var(--s3);color:var(--text);font-size:20px}#adm pre{white-space:pre-wrap;word-break:break-all;font-size:12px;color:var(--soft);margin:6px 0 0}';
   function bars(arr,days){const m=Math.max(1,...arr);return '<div class="bar" title="last 30 days">'+arr.map((v,i)=>'<i style="height:'+Math.round(v/m*100)+'%" title="'+days[i]+': '+v.toLocaleString()+'"></i>').join("")+'</div>';}
   function chart(label,arr,days,money){const tot=arr.reduce((a,b)=>a+b,0);return '<div class="box"><div class="row" style="border:0;padding:0 0 8px"><span>'+label+'</span><b>'+(money?N(tot):tot)+'</b></div>'+bars(arr,days)+'</div>';}
   function mount(){ if(document.getElementById("adm")) return; const st=document.createElement("style"); st.textContent=css; document.head.appendChild(st); const d=document.createElement("div"); d.id="adm"; document.body.appendChild(d); }
@@ -21,7 +21,7 @@
       '<div class="sub" style="margin-top:8px">Circles: '+(Object.keys(c).map(x=>c[x]+" "+x).join(" · ")||"none yet")+'</div>'+
       '<h3>Money (test money)</h3><div class="grid">'+k("Fees earned",N(m.fees))+k("User balances",N(m.balances))+k("Deposits held",N(m.deposits))+k("Default pools",N(m.pools))+k("Funded in",N(m.funded))+k("Sent to banks",N(m.withdrawn))+k("Paid into circles",N(m.paidIn))+k("Paid out",N(m.paidOut))+'</div>'+
       '<div class="sub" style="margin-top:8px">Totals come from receipts (the last 200 per user).</div>'+
-      '<h3>Your fees</h3><div class="box" id="admFee"><div class="grid" style="margin-bottom:10px">'+k("Kept so far",N(o.fees.kept))+k("Claimed",N(o.fees.claimed))+k("Ready to claim",N(o.fees.claimable))+'</div><div class="sub">'+(100-o.fees.poolShare)+'% of each fee is yours. '+o.fees.poolShare+'% goes into the circle\'s default pool.</div>'+(o.fees.claimable>0?'<button class="x" id="admClaim" style="position:static;float:none;margin-top:12px;width:100%">Claim '+N(o.fees.claimable)+' to my balance</button>':'')+(o.fees.claims.length?'<div style="margin-top:12px">'+o.fees.claims.map(c=>'<div class="row"><span>Claimed<small>'+T(c.at)+'</small></span><b>'+N(c.amount)+'</b></div>').join("")+'</div>':'')+'</div>'+
+      '<h3>Your fees</h3><div class="box feecard" id="admFee"></div>'+
       '<h3>Payout wallet</h3><div class="box"><div class="row"><span>Sends SOL to users who withdraw to their wallet<small>'+esc(o.payoutWallet.address||o.payoutWallet.error||"")+'</small></span><b>'+(o.payoutWallet.sol||0).toFixed(3)+' SOL<br>'+(o.payoutWallet.usdc||0).toFixed(2)+' USDC</b></div><div class="sub">Devnet only. If it runs low, send devnet SOL (faucet.solana.com) or devnet USDC (faucet.circle.com) to the address above.</div></div>'+
       '<h3>Problems ('+o.problems.length+')</h3><div class="box">'+(o.problems.length?o.problems.map(p=>'<div class="row"><span>'+esc(p.text)+'<small>'+esc(p.area)+(p.ref?' · '+esc(p.ref):'')+'</small></span><span class="tag '+p.level+'">'+p.level+'</span></div>').join(""):'<span class="ok">Nothing wrong right now.</span>')+'</div>'+
       '<h3>Clean up</h3><div class="box" id="admEmp"><span class="sub">Checking…</span></div>'+
@@ -30,8 +30,7 @@
       '<h3>Latest activity</h3><div class="box">'+(o.recent.map(r=>'<div class="row"><span>'+esc(r.title)+' · '+esc(r.who)+'<small>'+T(r.at)+(r.circle?' · '+esc(r.circle):'')+' · '+esc(r.id)+'</small></span><b>'+(r.amount?N(r.amount):'')+'</b></div>').join("")||'<span class="sub">Nothing yet.</span>')+'</div>'+
       '<h3>Trace anything</h3><input id="admQ" placeholder="Receipt id, reference, circle id, email, name, wallet or Solana signature" autocomplete="off"><div id="admR" style="margin-top:12px"></div></div>';
       document.getElementById("admX").onclick=()=>el.classList.remove("on");
-      const cl=document.getElementById("admClaim"); if(cl){ let armed=false; cl.onclick=async()=>{ if(!armed){ armed=true; cl.textContent="Tap again to claim"; setTimeout(()=>{ armed=false; cl.textContent="Claim "+N(o.fees.claimable)+" to my balance"; },5000); return; }
-        cl.disabled=true; try{ const r=await api("/api/admin/claim",{body:{}}); ME=r.me; renderPortfolio(); toast(N(r.claimed)+" added to your balance"); }catch(e){ toast(e.message); } open(); }; }
+      feeCard(o.fees);
       loadEmpties(); analytics();
       let tm; document.getElementById("admQ").oninput=e=>{clearTimeout(tm);tm=setTimeout(()=>trace(e.target.value),350);};
     }catch(e){ el.innerHTML='<div class="in"><button class="x" id="admX">Close</button><p>'+esc(e.message)+'</p></div>'; document.getElementById("admX").onclick=()=>el.classList.remove("on"); }
@@ -59,6 +58,28 @@
       box.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{range=b.dataset.r;setPref("adm-range",range);load();});
       box.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{style=b.dataset.s;setPref("adm-style",style);paint();});
       box.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{met=b.dataset.m;setPref("adm-met",met);paint();});
+    }
+    load();
+  }
+  const FR=[["1d","1D"],["7d","1W"],["30d","30D"],["all","All"]], PER={"1d":"yesterday","7d":"the week before","30d":"the 30 days before"};
+  async function feeCard(fees){
+    const box=document.getElementById("admFee"); if(!box) return; let range=pref("adm-frange","7d"), open_=false, d=null;
+    async function load(){ box.style.opacity=.6; try{ d=await api("/api/admin/feetrend?range="+range); }catch(e){ box.innerHTML='<span class="sub">'+esc(e.message)+'</span>'; return; } box.style.opacity=1; paint(); }
+    function pill(){ if(!d.compare) return '<span class="pillchg flat">All time</span>'; if(d.isNew) return '<span class="pillchg up">New</span>'; if(d.pct==null) return '<span class="pillchg flat">No change</span>';
+      return '<span class="pillchg '+(d.pct>0?'up':d.pct<0?'down':'flat')+'">'+(d.pct>0?'&uarr; ':d.pct<0?'&darr; ':'')+Math.abs(d.pct)+'%</span>'; }
+    function paint(){
+      box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><div style="font-size:22px;font-weight:400">Revenue</div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px"><span class="sub" style="font-size:16px">Service fees</span>'+pill()+'</div></div>'+
+        '<button class="arrowbtn" id="fcArrow" aria-label="Details" aria-expanded="'+open_+'">'+(open_?'&times;':'&nearr;')+'</button></div>'+
+        '<div style="font-size:40px;font-weight:300;letter-spacing:-.04em;margin:18px 0 2px;line-height:1">'+N(d.cur===undefined||!d.compare?d.total:d.cur)+'</div>'+
+        '<div class="sub">'+(d.compare?'vs '+N(d.prev)+' '+PER[range]:'Total kept since the start')+'</div>'+
+        '<div style="margin:12px 0 4px">'+draw(d.vals,d.labels,"bar",true)+'</div>'+
+        '<div class="themeseg" style="margin:8px 0 0">'+FR.map(x=>'<button data-fr="'+x[0]+'" aria-pressed="'+(range===x[0])+'">'+x[1]+'</button>').join("")+'</div>'+
+        (open_?'<div class="grid" style="margin-top:16px"><div class="k"><span>Kept so far</span><b>'+N(fees.kept)+'</b></div><div class="k"><span>Claimed</span><b>'+N(fees.claimed)+'</b></div><div class="k"><span>Ready to claim</span><b>'+N(fees.claimable)+'</b></div></div><div class="sub" style="margin-top:8px">'+(100-fees.poolShare)+'% of each fee is yours. '+fees.poolShare+'% goes into the circle\'s default pool.</div>'+(fees.claims.length?'<div style="margin-top:10px">'+fees.claims.map(c=>'<div class="row"><span>Claimed<small>'+T(c.at)+'</small></span><b>'+N(c.amount)+'</b></div>').join("")+'</div>':''):'')+
+        (fees.claimable>0?'<button class="x" id="admClaim" style="position:static;float:none;margin-top:14px;width:100%">Claim '+N(fees.claimable)+' to my balance</button>':'');
+      box.querySelectorAll("[data-fr]").forEach(b=>b.onclick=()=>{ range=b.dataset.fr; setPref("adm-frange",range); load(); });
+      document.getElementById("fcArrow").onclick=()=>{ open_=!open_; paint(); };
+      const cl=document.getElementById("admClaim"); if(cl){ let armed=false; cl.onclick=async()=>{ if(!armed){ armed=true; cl.textContent="Tap again to claim"; setTimeout(()=>{ armed=false; cl.textContent="Claim "+N(fees.claimable)+" to my balance"; },5000); return; }
+        cl.disabled=true; try{ const r=await api("/api/admin/claim",{body:{}}); ME=r.me; renderPortfolio(); toast(N(r.claimed)+" added to your balance"); }catch(e){ toast(e.message); } open(); }; }
     }
     load();
   }
